@@ -1,0 +1,44 @@
+{% extends "dj/_base.html" %}
+
+{% block content %}
+<h1 class="text-center">Validate songs</h1>
+<div class="panel panel-default">
+  <div class="panel-heading"><h3 class="panel-title">Songs waiting for validation</h3></div>
+  <div class="panel-body">
+    {% for song in pending %}
+    <div class="row">
+      <div class="col-xs-3">
+        <form method="post" action="#">{% csrf_token %}
+          <input type="hidden" name="id" value="{{song.id}}">
+          <div class="input-group">
+            <span class="input-group-addon">Title</span>
+            <input type="text" name="title" class="form-control" value="{{song.title}}" required>
+          </div>
+        </div>
+        <div class="col-xs-3">
+          <div class="input-group">
+            <span class="input-group-addon">Artist</span>
+            <input type="text" name="artist" class="form-control" value="{{song.artist}}" required>
+          </div>
+        </div>
+        <div class="col-xs-4">
+          <div class="input-group">
+            <span class="input-group-addon" onClick="javascript:window.open('{{song.link}}')">
+              <span class="glyphicon glyphicon-expand"></span>
+            </span>
+            <input type="text" name="link" class="form-control" value="{{song.link}}" required>
+          </div>
+        </div>
+        <div class="col-xs-1">
+          <button type="submit" name="action" value="validate" class="btn btn-default" style="width: 100%">Validate</button>
+        </div>
+        <div class="col-xs-1">
+          <button type="submit" name="action" value="nuke" class="btn btn-default" style="width: 100%">Nuke</button>
+        </div>
+      </span>
+    </div>
+    <br/>
+    {% endfor %}
+  </div>
+</div>
+{% endblock content %}

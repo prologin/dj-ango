@@ -1,0 +1,65 @@
+{% extends "dj/_base.html" %}
+
+{% block content %}
+<h1 class="text-center">Vote</h1>
+<div class="row">
+  {% for song in songs %}
+  <div class="col-md-8 col-md-offset-2">
+    <div class="panel panel-default">
+      <div class="panel-body">
+        <form method="post" action="#">{% csrf_token %}
+          {% if song.artist and song.artist.name != "Unknown" %}{{song.artist}} - {% endif %}{{song.title}}
+          <span style="float: right">
+            <span class="badge">{{song.votes__count}}</span>
+            <input type="hidden" name="id" value="{{song.id}}"></input>
+            {% if user in song.votes.all %}
+            <input type="hidden" name="todo" value="remove"></input>
+            <button type="submit" class="btn btn-danger btn-xs">
+              <span class="glyphicon glyphicon-thumbs-down"></span>
+            </button>
+            {% else %}
+            <input type="hidden" name="todo" value="add"></input>
+            <button type="submit" class="btn btn-success btn-xs">
+              <span class="glyphicon glyphicon-thumbs-up"></span>
+            </button>
+            {% endif %}
+          </span>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<!--pages--!>
+<div style="text-align: center;">
+  <ul class="pagination">
+    <li {% if page == 1 %}class="disabled"{% endif %}>
+    <a href="{% if page != 1 %}{% url "dj.vote" 1%}{% else %}#{% endif %}">
+      <span class="glyphicon glyphicon-fast-backward"></span>
+    </a>
+    </li>
+    <li {% if page == 1 %}class="disabled"{% endif %}>
+    <a href="{% if page != 1 %}{% url "dj.vote" page|add:"-1"%}{% else %}#{% endif %}">
+      <span class="glyphicon glyphicon-backward"></span>
+    </a>
+    </li>
+    {% for i in range %}
+    <li {% if i == page %}class="active"{% endif %}>
+    <a href="{% url "dj.vote" i %}">{{i}}
+      {% if i == page %}<span class="sr-only">(current)</span>{% endif %}
+    </a>
+    </li>
+    {% endfor %}
+    <li {% if page == last %}class="disabled"{% endif %}>
+    <a href="{% if page != last %}{% url "dj.vote" page|add:"1"%}{% else %}#{% endif %}">
+      <span class="glyphicon glyphicon-forward"></span>
+    </a>
+    </li>
+    <li {% if page == last %}class="disabled"{% endif %}>
+    <a href="{% if page != last %}{% url "dj.vote" last%}{% else %}#{% endif %}">
+      <span class="glyphicon glyphicon-fast-forward"></span>
+    </a>
+    </li>
+  </ul>
+</div>
+{% endblock content %}

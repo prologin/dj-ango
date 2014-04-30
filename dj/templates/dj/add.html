@@ -1,0 +1,50 @@
+{% extends "dj/_base.html" %}
+
+{% block content %}
+<h1 class="text-center">Add songs</h1>
+<div class="panel panel-default">
+  <div class="panel-heading">
+    <h3 class="panel-title">{% if user.is_superuser %}Youtube links{% else %}New song{% endif %}</h3>
+  </div>
+  <div class="panel-body">
+    <div class="row">
+      <div class="col-xs-6">
+        <form method="post" action="#">{% csrf_token %}
+          <div class="input-group">
+            <span class="input-group-addon">Title</span>
+            <input type="text" name="title" class="form-control" placeholder="mandatory" required>
+          </div>
+        </div>
+        <div class="col-xs-6">
+          <div class="input-group">
+            <span class="input-group-addon">Artist</span>
+            <input type="text" name="artist" class="form-control" placeholder="optional">
+          </div>
+        </div>
+      </div>
+      </br>
+      <div class="row">
+        {% if user.is_superuser %}
+        <div class="col-xs-10">
+          <div class="input-group">
+            <span class="input-group-addon"><span class="glyphicon glyphicon-expand"></span></span>
+            <input type="text" name="link" class="form-control" placeholder="https://www.youtube.com/watch?v=XXXXX" required>
+          </div>
+        </div>
+        {% endif %}
+        <div class="col-xs-{% if not user.is_superuser %}1{% endif %}2">
+          <button type="submit" class="btn btn-default" style="width: 100%">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="panel panel-default">
+    <div class="panel-heading"><h3 class="panel-title">Songs waiting for validation</h3></div>
+    <div class="panel-body">
+      {% for song in pending %}
+      {% if song.artist %}{{song.artist}} - {% endif %} {{song.title}}
+      <span style="float: right"><a href="https://www.youtube.com/watch?v={{song.link}}">{{song.link}}</a></span><br/>
+      {% endfor %}
+    </div>
+  </div>
+  {% endblock content %}
