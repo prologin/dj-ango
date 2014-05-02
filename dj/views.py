@@ -6,6 +6,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
 from DJ_Ango.dj.models import *
 from DJ_Ango.dj.player import MPDPlayer
+from apiclient.discovery import build
 import DJ_Ango.dj.youtube as youtube
 import threading
 import math
@@ -40,23 +41,42 @@ def index(request):
   return render_to_response('dj/index.html', args,
       context_instance=RequestContext(request))
 
+class YTResult:
+  def __init__(self, title, link):
+    self.title = title
+    self.link = link
+
+def yt_search(search):
+  yt = build('youtube', 'v3', developerKey='AIzaSyBj5jEAc9hqRzklXD6sO5dYqO0i9b34EBw')
+  res = yt.search().list(q=search, maxResults=10, type="video", part="snippet").execute()
+  return [YTResult(r["snippet"]["title"], r["id"]["videoId"]) for r in res["items"]]
+
 @csrf_protect
 def add(request):
   if not request.user.is_authenticated():
     return redirect('/login', prev=request.path)
   user = request.user
-  if "title" in request.POST:
+  results = None
+  if "search" in request.POST:
+    search = request.POST["search"]
+    results = yt_search(search)
+  if "link" in request.POST:
     artist = request.POST["artist"] if "artist" in request.POST else "Unknown"
     link = request.POST["link"] if "link" in request.POST else "Not given"
     if link and "?v=" in link:
       link = link.split("?v=")[1]      
     PendingSong(title=request.POST["title"], artist=artist, link=link, user=user).save()
   pending = PendingSong.objects.filter(user=user)
-  return render_to_response('dj/add.html', {'pending': pending, 'user': user},
+  args = {'pending': pending, 'user': user, 'results': results}
+  return render_to_response('dj/add.html', args,
       context_instance=RequestContext(request))
 
 def download_and_save(pending):
-  info = youtube.download_audio(pending.link)
+  try:
+    info = youtube.download_audio(pending.link)
+  except:
+    print("Couldn't download %s (%s)" % (pending.title, pending.link))
+    return
   title = info["title"]
   artist = pending.artist
   if artist is None:
@@ -79,6 +99,9 @@ def validate(request):
   user = request.user
   if "id" in request.POST and request.user.is_superuser:
     pending = PendingSong.objects.get(id=request.POST["id"])
+    pending.title = request.POST["title"]
+    pending.artist = request.POST["artist"] if "artist" in request.POST else "Unknown"
+    pending.link = request.POST["link"]
     if request.POST["action"] == "validate":
       print("Downloading %s" % pending)
       threading.Thread(target=download_and_save, args=[pending]).start()
