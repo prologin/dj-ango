@@ -34,15 +34,6 @@ class MPDPlayer:
     def stop(self):
       self.should_stop = True
     
-    def update(self):
-      try:
-        self.client.update()
-      except Exception:
-        self.client.connect("127.0.0.1", 4251)
-        self.client.update()
-        self.client.disconnect()
-      print("Updated MPD DB")
-    
     def player_thread(self):
       if os.path.isfile("running"):
         return
@@ -55,7 +46,10 @@ class MPDPlayer:
       self.client.disconnect()
       while not self.should_stop:
         self.client.connect("127.0.0.1", 4251)
-        start = player.start_time
+        self.client.update()
+        self.client.idle(["playlist"])
+        self.client.idle(["playlist"])
+        self.client.idle(["playlist"])
         song = player.song
         next = Song.objects.all().annotate(Count('votes')) \
             .order_by('-votes__count')[0]

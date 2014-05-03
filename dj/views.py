@@ -11,6 +11,7 @@ import DJ_Ango.dj.youtube as youtube
 import threading
 import math
 import re
+import datetime
 
 @csrf_protect
 def index(request):
@@ -25,16 +26,19 @@ def index(request):
     elif todo == "remove":
       song = Song.objects.get(id=request.POST["id"])
       song.votes.remove(User.objects.get(username=user))
+  player = Player.objects.get(id=1)
   if "volume" in request.POST and user.is_superuser:
-    player = Player.objects.get(id=1)
     player.volume = request.POST["volume"]
     player.save()
     player = MPDPlayer()
     player.set_vol(request.POST["volume"])
   size_next = 5
   songs = Song.objects.all().annotate(Count('votes')).order_by('-votes__count')
-  playing = Player.objects.get(id=1).song
-  time = "%d:%02d" % divmod(playing.duration, 60)
+  playing = player.song
+  elapsed = datetime.datetime.now() - player.start_time
+  cm, cs = divmod(elapsed.seconds, 60)
+  dm, ds = divmod(playing.duration, 60)
+  time = "%d:%02d/%d:%02d" % (cm, cs, dm, ds)
   args = {'songs': songs[:size_next], 'playing': playing, 'time': time, 'user': user}
   if user.is_superuser:
     args["volume"] = Player.objects.get(id=1).volume
@@ -59,7 +63,10 @@ def add(request):
   results = None
   if "search" in request.POST:
     search = request.POST["search"]
-    results = yt_search(search)
+    if "?v=" in search:
+      results = [YTResult("Direct link", search.split("?v=")[1])]
+    else:
+      results = yt_search(search)
   if "link" in request.POST:
     artist = request.POST["artist"] if "artist" in request.POST else "Unknown"
     link = request.POST["link"] if "link" in request.POST else "Not given"
@@ -89,8 +96,6 @@ def download_and_save(pending):
   f = info["filename"]
   duration = info["duration"]
   Song(title=pending.title, artist=artist, file=f, duration=duration).save()
-  player = MPDPlayer()
-  player.update()
 
 @csrf_protect
 def validate(request):
@@ -101,6 +106,8 @@ def validate(request):
     pending = PendingSong.objects.get(id=request.POST["id"])
     pending.title = request.POST["title"]
     pending.artist = request.POST["artist"] if "artist" in request.POST else "Unknown"
+    if pending.artist == "":
+      pending.artist = "Unknown"
     pending.link = request.POST["link"]
     if request.POST["action"] == "validate":
       print("Downloading %s" % pending)
