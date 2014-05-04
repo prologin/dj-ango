@@ -1,7 +1,7 @@
 from django.views.decorators.csrf import csrf_protect
 from django.template import RequestContext
 from django.shortcuts import render_to_response, redirect
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
 from DJ_Ango.dj.models import *
@@ -130,21 +130,29 @@ def vote(request, page):
     elif todo == "remove":
       song = Song.objects.get(id=request.POST["id"])
       song.votes.remove(User.objects.get(username=user))
-  perpage = 10
-  lastpage = math.ceil(Song.objects.count() / perpage)
-  pages = 5
-  page = max(0, min(lastpage, int(page)))
-  if page <= pages // 2:
-    start = 1
-    end = min(pages, lastpage)
-  elif page > lastpage - pages // 2:
-    start = max(1, lastpage - pages + 1)
-    end = lastpage
+  if "search" in request.POST:
+    search = request.POST["search"]
+    pages = page = start = end = lastpage = 1
+    songs = Song.objects\
+        .filter(Q(title__icontains=search) | Q(artist__name__icontains=search))\
+        .annotate(Count('votes')).order_by('-votes__count')
+    perpage = len(songs)
   else:
-    start = page - pages // 2
-    end = start + pages - 1
-  songs = Song.objects.all().annotate(Count('votes')) \
-      .order_by('-votes__count')[perpage*(page-1):perpage*page]
+    perpage = 10
+    lastpage = math.ceil(Song.objects.count() / perpage)
+    pages = 5
+    page = max(0, min(lastpage, int(page)))
+    if page <= pages // 2:
+      start = 1
+      end = min(pages, lastpage)
+    elif page > lastpage - pages // 2:
+      start = max(1, lastpage - pages + 1)
+      end = lastpage
+    else:
+      start = page - pages // 2
+      end = start + pages - 1
+    songs = Song.objects.all().annotate(Count('votes')) \
+        .order_by('-votes__count')[perpage*(page-1):perpage*page]
   args = {'page': page, 'perpage': perpage, 'last': lastpage, 'start': start,
       'end': end, 'range': range(start, end+1), 'songs': songs, 'user': user}
   return render_to_response('dj/vote.html', args,
