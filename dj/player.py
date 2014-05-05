@@ -25,11 +25,9 @@ class MPDPlayer:
   
     def set_vol(self, vol):
       try:
-        self.client.setvol(vol)
-      except Exception:
-        self.client.connect("127.0.0.1", 4251)
-        self.client.setvol(vol)
-        self.client.disconnect()
+        self.client.setvol(int(vol))
+      except:
+        print("Could not set volume.")
     
     def stop(self):
       self.should_stop = True
@@ -46,21 +44,23 @@ class MPDPlayer:
       self.client.disconnect()
       while not self.should_stop:
         self.client.connect("127.0.0.1", 4251)
-        self.client.update()
-        self.client.idle(["playlist"])
-        self.client.idle(["playlist"])
-        self.client.idle(["playlist"])
         song = player.song
+        if self.client.playlist() != []:
+          self.client.idle(["playlist"]) #end of song
+          self.client.clear()
         next = Song.objects.all().annotate(Count('votes')) \
             .order_by('-votes__count')[0]
-        if self.client.playlist() != []:
-          self.client.idle(["playlist"])
-          self.client.clear()
-        self.client.add(next.file)
+        try:
+          self.client.add(next.file)
+        except:
+          self.client.update()
+          self.client.idle(["update"]) #start
+          self.client.idle(["update"]) #end
+          self.client.add(next.file)
         self.client.play()
-        self.client.idle(["playlist"])
-        self.client.idle(["playlist"])
-        self.client.idle(["playlist"])
+        self.client.idle(["playlist"]) #add
+        self.client.idle(["playlist"]) #add is sending 2 events
+        self.client.idle(["playlist"]) #play
         next.votes = []
         next.save()
         player.song = next

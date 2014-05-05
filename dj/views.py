@@ -30,8 +30,8 @@ def index(request):
   if "volume" in request.POST and user.is_superuser:
     player.volume = request.POST["volume"]
     player.save()
-    player = MPDPlayer()
-    player.set_vol(request.POST["volume"])
+    mpdplayer = MPDPlayer()
+    mpdplayer.set_vol(request.POST["volume"])
   size_next = 5
   songs = Song.objects.all().annotate(Count('votes')).order_by('-votes__count')
   playing = player.song
