@@ -6,6 +6,7 @@ import time
 import os
 import os.path
 import atexit
+import random
 
 class MPDPlayer:
   instance = None
@@ -50,6 +51,9 @@ class MPDPlayer:
           self.client.clear()
         next = Song.objects.all().annotate(Count('votes')) \
             .order_by('-votes__count')[0]
+        if next.votes.count() == 0:
+          next = random.choice(Song.objects.all())
+        print("next: %s" % next)
         try:
           self.client.add(next.file)
         except:
