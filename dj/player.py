@@ -23,16 +23,16 @@ class MPDPlayer:
       self.client = MPDClient()
       self.should_stop = False
       atexit.register(os.remove, "running")
-  
+
     def set_vol(self, vol):
       try:
         self.client.setvol(int(vol))
       except:
         print("Could not set volume.")
-    
+
     def stop(self):
       self.should_stop = True
-    
+
     def player_thread(self):
       if os.path.isfile("running"):
         return

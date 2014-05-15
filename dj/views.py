@@ -71,7 +71,7 @@ def add(request):
     artist = request.POST["artist"] if "artist" in request.POST else "Unknown"
     link = request.POST["link"] if "link" in request.POST else "Not given"
     if link and "?v=" in link:
-      link = link.split("?v=")[1]      
+      link = link.split("?v=")[1]
     PendingSong(title=request.POST["title"], artist=artist, link=link, user=user).save()
   pending = PendingSong.objects.filter(user=user)
   args = {'pending': pending, 'user': user, 'results': results}
@@ -89,7 +89,7 @@ def download_and_save(pending):
   if artist is None:
     artist = Artist.objects.get(name="Unknown")
   elif Artist.objects.filter(name=artist).exists():
-    artist = Artist.objects.get(name=artist)    
+    artist = Artist.objects.get(name=artist)
   else:
     artist = Artist(name=artist)
     artist.save()

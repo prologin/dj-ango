@@ -19,10 +19,10 @@ for fname in os.listdir(sys.argv[1]):
   if not os.path.isfile(os.path.join(sys.argv[1], fname)):
     continue
   name = ".".join(fname.split(".")[:-1])
-  sp = name.split(" --- ") 
+  sp = name.split(" --- ")
   if len(sp) > 1:
     if Artist.objects.filter(name=sp[0]).exists():
-      artist = Artist.objects.get(name=sp[0])    
+      artist = Artist.objects.get(name=sp[0])
     else:
       artist = Artist(name=sp[0])
       artist.save()
