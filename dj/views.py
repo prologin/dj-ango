@@ -1,4 +1,3 @@
-from django.views.decorators.csrf import csrf_protect
 from django.template import RequestContext
 from django.shortcuts import render_to_response, redirect
 from django.db.models import Count, Q
@@ -13,7 +12,6 @@ import math
 import re
 import datetime
 
-@csrf_protect
 def index(request):
   if not request.user.is_authenticated():
     return redirect('/login', prev=request.path)
@@ -55,7 +53,6 @@ def yt_search(search):
   res = yt.search().list(q=search, maxResults=10, type="video", part="snippet").execute()
   return [YTResult(r["snippet"]["title"], r["id"]["videoId"]) for r in res["items"]]
 
-@csrf_protect
 def add(request):
   if not request.user.is_authenticated():
     return redirect('/login', prev=request.path)
@@ -97,7 +94,6 @@ def download_and_save(pending):
   duration = info["duration"]
   Song(title=pending.title, artist=artist, file=f, duration=duration).save()
 
-@csrf_protect
 def validate(request):
   if not (request.user.is_authenticated() and request.user.is_superuser):
     return redirect('/')
@@ -117,7 +113,6 @@ def validate(request):
   return render_to_response('dj/validate.html', {'pending': pending},
       context_instance=RequestContext(request))
 
-@csrf_protect
 def vote(request, page):
   if not request.user.is_authenticated():
     return redirect('/login', prev=request.path)
@@ -158,7 +153,6 @@ def vote(request, page):
   return render_to_response('dj/vote.html', args,
       context_instance=RequestContext(request))
 
-@csrf_protect
 def login(request, prev='/'):
   if request.user.is_authenticated():
     return redirect('/logout')
