@@ -8,6 +8,7 @@
         <div class="panel panel-default">
           <div class="panel-heading"><h3 class="panel-title">Playlist</h3></div>
           <div class="panel-body">
+            <!--
             {% if user.is_superuser %}
             <form method="post" action="#">{% csrf_token %}
               <h4>Volume:
@@ -21,6 +22,12 @@
             <script>$('#sl1').slider()</script>
             <hr>
             {% endif %}
+            --!>
+            <h4>Player</h4>
+            <audio controls style="width: 100%">
+              <source src="http://mpd.zeletochoy.fr/mpd.ogg" type="audio/ogg">
+              Your browser does not support the audio element.
+            </audio> 
             <h4>Now Playing</h4>
             {% if playing.artist and playing.artist.name != "Unknown" %}{{playing.artist}} - {% endif %}{{playing.title}}
             <span style="float: right">{{time}}</span>
