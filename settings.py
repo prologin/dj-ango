@@ -1,4 +1,5 @@
-# Django settings for DJ_Ango project.
+# Django settings for dj_ango project.
+import os
 
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
@@ -58,6 +59,8 @@ MEDIA_URL = ''
 ADMIN_MEDIA_PREFIX = '/media/'
 
 # Static files root dir
+STATIC_ROOT = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'static')
+
 STATIC_URL = '/static/'
 
 # Make this unique, and don't share it with anybody.
@@ -78,7 +81,7 @@ MIDDLEWARE_CLASSES = (
     'django.contrib.messages.middleware.MessageMiddleware',
 )
 
-ROOT_URLCONF = 'DJ_Ango.urls'
+ROOT_URLCONF = 'urls'
 
 TEMPLATE_DIRS = (
     'dj/templates/'
@@ -95,3 +98,10 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
     'dj'
 )
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'django-cache'
+    }
+}

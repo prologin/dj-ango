@@ -53,7 +53,6 @@ class MPDPlayer:
             .order_by('-votes__count')[0]
         if next.votes.count() == 0:
           next = random.choice(Song.objects.all())
-        print("next: %s" % next)
         try:
           self.client.add(next.file)
         except:
