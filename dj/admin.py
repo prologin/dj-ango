@@ -1,5 +1,13 @@
-from DJ_Ango.dj.models import *
+from dj.models import *
 from django.contrib import admin
 
-for mod in (Artist, Song, PendingSong, Player):
+
+class SongAdmin(admin.ModelAdmin):
+    list_display = ('title', 'artist', 'duration')
+    list_per_page = 2500
+    search_fields = ('title', 'artist__name')
+
+admin.site.register(Song, SongAdmin)
+
+for mod in (Artist, PendingSong, Player):
     admin.site.register(mod)
