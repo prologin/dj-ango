@@ -24,13 +24,13 @@
             {% endif %}
             --!>
             <h4>Player</h4>
-            <audio controls style="width: 100%">
+            <audio controls loop style="width: 100%">
               <source src="http://mpd.zeletochoy.fr/mpd.ogg" type="audio/ogg">
               Your browser does not support the audio element.
             </audio> 
             <h4>Now Playing</h4>
             {% if playing.artist and playing.artist.name != "Unknown" %}{{playing.artist}} - {% endif %}{{playing.title}}
-            <span style="float: right">{{time}}</span>
+            <span id="timer" style="float: right">{{time}}</span>
             <hr>
             <h4>Next</h4>
             {% for song in songs %}

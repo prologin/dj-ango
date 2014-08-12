@@ -46,13 +46,17 @@ class MPDPlayer:
       while not self.should_stop:
         self.client.connect("127.0.0.1", 4251)
         song = player.song
-        if self.client.playlist() != []:
+        print("============== playlist ====================") # Ca pete ici
+        print(self.client.playlist())
+        print("============== playlist ====================")
+        if self.client.playlist():
           self.client.idle(["playlist"]) #end of song
           self.client.clear()
         next = Song.objects.all().annotate(Count('votes')) \
             .order_by('-votes__count')[0]
         if next.votes.count() == 0:
           next = random.choice(Song.objects.all())
+        print("next: " + next.file)
         try:
           self.client.add(next.file)
         except:
