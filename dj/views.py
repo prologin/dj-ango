@@ -3,6 +3,7 @@ from django.shortcuts import render_to_response, redirect
 from django.db.models import Count, Q
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
+from django.http import HttpResponse
 from DJ_Ango.dj.models import *
 from DJ_Ango.dj.player import MPDPlayer
 from apiclient.discovery import build
@@ -70,6 +71,12 @@ def add(request):
     if link and "?v=" in link:
       link = link.split("?v=")[1]
     PendingSong(title=request.POST["title"], artist=artist, link=link, user=user).save()
+  if "file" in request.FILES:
+    return HttpResponse("Work in progress…") #FIXME
+    with open("/var/django/DJ_Ango/received_file_DELETEME", "wb+") as f:
+      for c in request.FILES["file"]:
+        f.write(c)
+    print("File saved !")
   pending = PendingSong.objects.filter(user=user)
   args = {'pending': pending, 'user': user, 'results': results}
   return render_to_response('dj/add.html', args,

@@ -26,7 +26,11 @@ function update_time()
     location.reload();
     return;
   }
+  var ratio = 100 * time / max_sec;
   time = sec2str(time);
+  $("#timer-bar").attr("aria-valuenow", ratio);
+  $("#timer-bar").attr("style", "width: " + ratio + "%");
+  $("#timer-remain").attr("style", "width: " + (100 - ratio) + "%");
   $("#timer").text(time + "/" + total);
   setTimeout(update_time, 1000);
 }
