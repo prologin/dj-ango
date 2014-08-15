@@ -1,4 +1,5 @@
 from django.template import RequestContext
+from django.core.paginator import Paginator
 from django.shortcuts import render_to_response, redirect
 from django.db.models import Count, Q
 from django.contrib.auth.models import User
@@ -6,6 +7,7 @@ from django.contrib.auth import authenticate, login as auth_login, logout as aut
 from django.http import HttpResponse
 from DJ_Ango.dj.models import *
 from DJ_Ango.dj.player import MPDPlayer
+from DJ_Ango.dj.utils import compute_time
 from apiclient.discovery import build
 import DJ_Ango.dj.youtube as youtube
 import threading
@@ -13,7 +15,7 @@ import math
 import re
 import datetime
 
-def index(request):
+def index(request, template="dj/index.html"):
   if not request.user.is_authenticated():
     return redirect('/login', prev=request.path)
   user = request.user
@@ -41,8 +43,11 @@ def index(request):
   args = {'songs': songs[:size_next], 'playing': playing, 'time': time, 'user': user}
   if user.is_superuser:
     args["volume"] = Player.objects.get(id=1).volume
-  return render_to_response('dj/index.html', args,
+  return render_to_response(template, args,
       context_instance=RequestContext(request))
+
+def now_playing(request):
+  return index(request, "dj/now_playing.html")
 
 class YTResult:
   def __init__(self, title, link):
@@ -72,15 +77,29 @@ def add(request):
       link = link.split("?v=")[1]
     PendingSong(title=request.POST["title"], artist=artist, link=link, user=user).save()
   if "file" in request.FILES:
-    return HttpResponse("Work in progress…") #FIXME
-    with open("/var/django/DJ_Ango/received_file_DELETEME", "wb+") as f:
-      for c in request.FILES["file"]:
-        f.write(c)
-    print("File saved !")
+    save_upload(request.FILES["file"], request.POST["title"],
+        request.POST["artist"] if "artist" in request.POST else None)
   pending = PendingSong.objects.filter(user=user)
   args = {'pending': pending, 'user': user, 'results': results}
   return render_to_response('dj/add.html', args,
       context_instance=RequestContext(request))
+
+def save_upload(f, title, artist):
+  ext = "." + str(f).split(".")[-1]
+  fname = ((artist + " - ") if artist else "") + title + ext
+  path = "/var/django/DJ_Ango/dj/songs/upload/"
+  with open(path + fname, "wb+") as dst:
+    for c in f.chunks():
+      dst.write(c)
+  if artist is None:
+    artist = Artist.objects.get(name="Unknown")
+  elif Artist.objects.filter(name=artist).exists():
+    artist = Artist.objects.get(name=artist)
+  else:
+    artist = Artist(name=artist)
+    artist.save()
+  duration = compute_time(f)
+  Song(title=title, artist=artist, file=("upload/" + fname), duration=duration).save()
 
 def download_and_save(pending):
   try:
@@ -120,7 +139,7 @@ def validate(request):
   return render_to_response('dj/validate.html', {'pending': pending},
       context_instance=RequestContext(request))
 
-def vote(request, page):
+def vote(request, page, template="dj/vote.html", category="all"):
   if not request.user.is_authenticated():
     return redirect('/login', prev=request.path)
   user = request.user
@@ -134,31 +153,24 @@ def vote(request, page):
       song.votes.remove(User.objects.get(username=user))
   if "search" in request.POST:
     search = request.POST["search"]
-    pages = page = start = end = lastpage = 1
     songs = Song.objects\
         .filter(Q(title__icontains=search) | Q(artist__name__icontains=search))\
         .annotate(Count('votes')).order_by('-votes__count')
-    perpage = len(songs)
+  elif category != "all":
+    songs = Song.objects.all().filter(file__startswith=(category + "/"))\
+            .annotate(Count('votes')).order_by('-votes__count')
   else:
-    perpage = 10
-    lastpage = math.ceil(Song.objects.count() / perpage)
-    pages = 5
-    page = max(0, min(lastpage, int(page)))
-    if page <= pages // 2:
-      start = 1
-      end = min(pages, lastpage)
-    elif page > lastpage - pages // 2:
-      start = max(1, lastpage - pages + 1)
-      end = lastpage
-    else:
-      start = page - pages // 2
-      end = start + pages - 1
-    songs = Song.objects.all().annotate(Count('votes')) \
-        .order_by('-votes__count')[perpage*(page-1):perpage*page]
-  args = {'page': page, 'perpage': perpage, 'last': lastpage, 'start': start,
-      'end': end, 'range': range(start, end+1), 'songs': songs, 'user': user}
-  return render_to_response('dj/vote.html', args,
+    songs = Song.objects.all().annotate(Count('votes')).order_by('-votes__count')
+  p = Paginator(songs, 20)
+  args = {'page': p.page(page), 'num_pages': p.num_pages, 'category': category, 'user': user}
+  return render_to_response(template, args,
       context_instance=RequestContext(request))
+
+def vote_category(request, c, page):
+  return vote(request, page, category=c)
+
+def vote_get_category(request, c, page):
+  return vote(request, page, "dj/vote_page.html", c)
 
 def login(request, prev='/'):
   if request.user.is_authenticated():

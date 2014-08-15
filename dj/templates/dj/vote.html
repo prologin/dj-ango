@@ -21,73 +21,18 @@
   <div class="col-md-10 col-md-offset-1">
     <div class="well">
       <ul class="nav nav-tabs nav-justified" role="tablist">
-        <li class="active"><a href="#">All</a>
-        </li>
-        <li><a href="javascript:alert('soon')">Youtube</a></li>
-        <li><a href="javascript:alert('soon')">Grooveshark</a></li>
-        <li><a href="javascript:alert('soon')">Coucoucircus</a></li>
+        <li id="all" {% if category == "all" %}class="active"{% endif %}><a href="javascript:vote_category('all')">All</a> </li>
+        <li id="youtube" {% if category == "youtube" %}class="active"{% endif %}><a href="javascript:vote_category('youtube')">Youtube</a></li>
+        <li id="grooveshark" {% if category == "grooveshark" %}class="active"{% endif %}><a href="javascript:vote_category('grooveshark')">Grooveshark</a></li>
+        <li id="coucoucircus" {% if category == "coucoucircus" %}class="active"{% endif %}><a href="javascript:vote_category('coucoucircus')">Coucoucircus</a></li>
+        <li id="upload" {% if category == "upload" %}class="active"{% endif %}><a href="javascript:vote_category('upload')">Upload</a></li>
       </ul>
       <br/><br/>
-      {% for song in songs %}
-      <div class="col-md-12">
-        <div class="panel panel-default">
-          <div class="panel-body">
-            <form method="post" action="#">{% csrf_token %}
-              {% if song.artist and song.artist.name != "Unknown" %}{{song.artist}} - {% endif %}{{song.title}}
-              <span style="float: right">
-                <span class="badge">{{song.votes__count}}</span>
-                <input type="hidden" name="id" value="{{song.id}}"></input>
-                {% if user in song.votes.all %}
-                <input type="hidden" name="todo" value="remove"></input>
-                <button type="submit" class="btn btn-danger btn-xs">
-                  <span class="glyphicon glyphicon-thumbs-down"></span>
-                </button>
-                {% else %}
-                <input type="hidden" name="todo" value="add"></input>
-                <button type="submit" class="btn btn-success btn-xs">
-                  <span class="glyphicon glyphicon-thumbs-up"></span>
-                </button>
-                {% endif %}
-              </span>
-            </form>
-          </div>
-        </div>
-      </div>
-      {% endfor %}
-      <div style="text-align: center;">
-        <ul class="pagination">
-          <li {% if page == 1 %}class="disabled"{% endif %}>
-          <a href="{% if page != 1 %}{% url "dj.vote" 1%}{% else %}#{% endif %}">
-            <span class="glyphicon glyphicon-fast-backward"></span>
-          </a>
-          </li>
-          <li {% if page == 1 %}class="disabled"{% endif %}>
-          <a href="{% if page != 1 %}{% url "dj.vote" page|add:"-1"%}{% else %}#{% endif %}">
-            <span class="glyphicon glyphicon-backward"></span>
-          </a>
-          </li>
-          {% for i in range %}
-          <li {% if i == page %}class="active"{% endif %}>
-          <a href="{% url "dj.vote" i %}">{{i}}
-            {% if i == page %}<span class="sr-only">(current)</span>{% endif %}
-          </a>
-          </li>
-          {% endfor %}
-          <li {% if page == last %}class="disabled"{% endif %}>
-          <a href="{% if page != last %}{% url "dj.vote" page|add:"1"%}{% else %}#{% endif %}">
-            <span class="glyphicon glyphicon-forward"></span>
-          </a>
-          </li>
-          <li {% if page == last %}class="disabled"{% endif %}>
-          <a href="{% if page != last %}{% url "dj.vote" last%}{% else %}#{% endif %}">
-            <span class="glyphicon glyphicon-fast-forward"></span>
-          </a>
-          </li>
-        </ul>
-      </div>
+      <span id="page">
+      {% include "dj/vote_page.html" %}
+    </span>
     </div>
   </div>
 </div>
 </div>
-<!--pages--!>
 {% endblock content %}
