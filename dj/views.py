@@ -146,14 +146,6 @@ def vote(request, page, template="dj/vote.html", category="all"):
   if not request.user.is_authenticated():
     return redirect('/login', prev=request.path)
   user = request.user
-  if "todo" in request.POST and "id" in request.POST:
-    todo = request.POST["todo"]
-    if todo == "add":
-      song = Song.objects.get(id=request.POST["id"])
-      song.votes.add(User.objects.get(username=user))
-    elif todo == "remove":
-      song = Song.objects.get(id=request.POST["id"])
-      song.votes.remove(User.objects.get(username=user))
   if "search" in request.POST:
     search = request.POST["search"]
     songs = Song.objects\
@@ -174,6 +166,18 @@ def vote_category(request, c, page):
 
 def vote_get_category(request, c, page):
   return vote(request, page, "dj/vote_page.html", c)
+
+def add_vote(request, song_id):
+  song = Song.objects.get(id=song_id)
+  song.votes.add(User.objects.get(username=request.user))
+  song.save()
+  return HttpResponse("OK")
+
+def del_vote(request, song_id):
+  song = Song.objects.get(id=song_id)
+  song.votes.remove(User.objects.get(username=request.user))
+  song.save()
+  return HttpResponse("OK")
 
 def login(request, prev='/'):
   if request.user.is_authenticated():

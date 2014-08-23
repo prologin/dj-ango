@@ -60,6 +60,27 @@ function vote_page(p, c)
   history.pushState({}, "", url);
 }
 
+function add_vote(id, p, c)
+{
+  $.get("/vote/add/" + id, {}, function(data) { vote_page(p, c); });
+}
+
+function del_vote(id, p, c)
+{
+  $.get("/vote/rm/" + id, {}, function(data) { vote_page(p, c); });
+}
+
+function add_vote_idx(id)
+{
+  $.get("/vote/add/" + id, {}, function(data) { update_next(); });
+}
+
+function del_vote_idx(id)
+{
+  $.get("/vote/rm/" + id, {}, function(data) { update_next(); });
+}
+
+
 function update_now_playing()
 {
   var span = $("#now-playing");
