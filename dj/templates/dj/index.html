@@ -32,30 +32,12 @@
             <h4>Now Playing</h4>
             <span id="now-playing">
             {% include "dj/now_playing.html" %}
-          </span>
+            </span>
             <hr>
             <h4>Next</h4>
-            {% for song in songs %}
-            <form method="post" action="#">{% csrf_token %}
-              {% if song.artist and song.artist.name != "Unknown" %}{{song.artist}} - {% endif %}{{song.title}}
-              <span style="float: right">
-                <span class="badge">{{song.votes__count}}</span>
-                <input type="hidden" name="id" value="{{song.id}}"></input>
-                {% if user in song.votes.all %}
-                <input type="hidden" name="todo" value="remove"></input>
-                <button type="submit" class="btn btn-danger btn-xs">
-                  <span class="glyphicon glyphicon-thumbs-down"></span>
-                </button>
-                {% else %}
-                <input type="hidden" name="todo" value="add"></input>
-                <button type="submit" class="btn btn-success btn-xs">
-                  <span class="glyphicon glyphicon-thumbs-up"></span>
-                </button>
-                {% endif %}
-              </span>
-            </form>
-            </br>
-            {% endfor %}
+            <span id="next">
+            {% include "dj/next.html" %}
+            </span>
           </div>
         </div>
       </div>

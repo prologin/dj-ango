@@ -49,6 +49,9 @@ def index(request, template="dj/index.html"):
 def now_playing(request):
   return index(request, "dj/now_playing.html")
 
+def next(request):
+  return index(request, "dj/next.html")
+
 class YTResult:
   def __init__(self, title, link):
     self.title = title

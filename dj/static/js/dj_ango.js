@@ -1,4 +1,5 @@
 var timer_timeout;
+var timer_votes_reload;
 
 function str2sec(s)
 {
@@ -26,6 +27,7 @@ function update_time()
   if (time > max_sec)
   {
     update_now_playing();
+    update_next();
     return;
   }
   var ratio = 100 * time / max_sec;
@@ -49,26 +51,37 @@ function vote_page(p, c)
   var span = $("#page");
   $(".active").removeClass("active");
   $("#" + c).addClass("active");
-  span.fadeOut();
   $.get(requrl, {}, function(data)
   {
+    span.fadeOut();
     span.html(data);
+    span.fadeIn();
   });
-  span.fadeIn();
   history.pushState({}, "", url);
 }
 
 function update_now_playing()
 {
   var span = $("#now-playing");
-  span.fadeOut(1000);
   $.get('/now_playing/', {}, function(data)
+  {
+    span.fadeOut(1000);
+    span.html(data);
+    span.fadeIn(1000);
+  });
+  clearTimeout(timer_timeout);
+  timer_timeout = setTimeout(update_time, 1000);
+}
+
+function update_next()
+{
+  var span = $("#next");
+  $.get('/next/', {}, function(data)
   {
     span.html(data);
   });
-  span.fadeIn(1000);
-  clearTimeout(timer_timeout);
-  timer_timeout = setTimeout(update_time, 1000);
+  clearTimeout(timer_votes_reload);
+  timer_timeout = setTimeout(update_next, 5000);
 }
 
 $(document).ready(function()
@@ -76,5 +89,6 @@ $(document).ready(function()
   if ($("#timer").length != 0)
   {
     timer_timeout = setTimeout(update_time, 1000);
+    timer_votes_reload = setTimeout(update_next, 5000);
   }
 });

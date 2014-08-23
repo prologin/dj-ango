@@ -3,7 +3,7 @@
 {% block content %}
 <h1 class="text-center">Vote</h1>
 <div class="row">
-  <form method="post" action="#">{% csrf_token %}
+  <form method="post" action="/vote/1">{% csrf_token %}
     <div class="col-md-6 col-md-offset-3">
       <div class="input-group">
         <input type="text" name="search" class="form-control">
@@ -30,9 +30,8 @@
       <br/><br/>
       <span id="page">
       {% include "dj/vote_page.html" %}
-    </span>
+      </span>
     </div>
   </div>
-</div>
 </div>
 {% endblock content %}
