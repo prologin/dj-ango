@@ -156,7 +156,7 @@ def vote(request, page, template="dj/vote.html", category="all"):
             .annotate(Count('votes')).order_by('-votes__count')
   else:
     songs = Song.objects.all().annotate(Count('votes')).order_by('-votes__count')
-  p = Paginator(songs, 20)
+  p = Paginator(songs, 100 if "search" in request.POST else 20)
   args = {'page': p.page(page), 'num_pages': p.num_pages, 'category': category, 'user': user}
   return render_to_response(template, args,
       context_instance=RequestContext(request))

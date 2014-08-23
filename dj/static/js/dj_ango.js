@@ -1,6 +1,23 @@
 var timer_timeout;
 var timer_votes_reload;
 
+function fade(obj, data, time)
+{
+  obj.fadeOut(time, function()
+  {
+    obj.html(data);
+    obj.fadeIn(time);
+  });
+}
+
+function fade_callback(obj, time)
+{
+  return function(data)
+  {
+    fade(obj, data, time);
+  }
+}
+
 function str2sec(s)
 {
   var m = s.split(":");
@@ -51,12 +68,7 @@ function vote_page(p, c)
   var span = $("#page");
   $(".active").removeClass("active");
   $("#" + c).addClass("active");
-  $.get(requrl, {}, function(data)
-  {
-    span.fadeOut();
-    span.html(data);
-    span.fadeIn();
-  });
+  $.get(requrl, {}, fade_callback(span, 300));
   history.pushState({}, "", url);
 }
 
@@ -84,12 +96,7 @@ function del_vote_idx(id)
 function update_now_playing()
 {
   var span = $("#now-playing");
-  $.get('/now_playing/', {}, function(data)
-  {
-    span.fadeOut(1000);
-    span.html(data);
-    span.fadeIn(1000);
-  });
+  $.get('/now_playing/', {}, fade_callback(span, 1000));
   clearTimeout(timer_timeout);
   timer_timeout = setTimeout(update_time, 1000);
 }
