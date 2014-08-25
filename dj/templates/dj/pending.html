@@ -1,0 +1,31 @@
+{% for song in pending %}
+<div class="row">
+  <div class="col-xs-3">
+    <div class="input-group">
+      <span class="input-group-addon">Title</span>
+      <input type="text" id="title{{song.id}}" class="form-control" value="{{song.title}}" required>
+    </div>
+  </div>
+  <div class="col-xs-3">
+    <div class="input-group">
+      <span class="input-group-addon">Artist</span>
+      <input type="text" id="artist{{song.id}}" class="form-control" value="{{song.artist}}">
+    </div>
+  </div>
+  <div class="col-xs-4">
+    <div class="input-group">
+      <span class="input-group-addon" onClick="javascript:window.open('{{song.link}}')">
+        <span class="glyphicon glyphicon-expand"></span>
+      </span>
+      <input type="text" id="link{{song.id}}" class="form-control" value="{{song.link}}" required>
+    </div>
+  </div>
+  <div class="col-xs-1">
+    <button class="btn btn-default" style="width: 100%" onclick="validate({{song.id}})">Validate</button>
+  </div>
+  <div class="col-xs-1">
+    <button class="btn btn-default" style="width: 100%" onclick="nuke({{song.id}})">Nuke</button>
+  </div>
+</div>
+<br/>
+{% endfor %}

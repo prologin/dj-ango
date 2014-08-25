@@ -92,6 +92,38 @@ function del_vote_idx(id)
   $.get("/vote/rm/" + id, {}, function(data) { update_next(); });
 }
 
+function add_search()
+{
+  var search = $("#search").val();
+  $.get("/search/" + search, {}, function(data) { $("#results").html(data); });
+  return false;
+}
+
+function add_pending(link)
+{
+  if ($("#title").val().length == 0)
+  {
+    alert("The title field is required");
+    return;
+  }
+  var data =
+  {
+    title: $("#title").val(),
+    artist: $("#artist").val(),
+    link: link
+  };
+  $.post("/add_pending/", data, function(data)
+  {
+      update_pending();
+      $("#result_list").slideUp(1000, function() {  $("#result_list").text(""); });
+  });
+}
+
+function update_pending()
+{
+  var span = $("#pending");
+  $.get('/add/pending/', {}, fade_callback(span, 1000));
+}
 
 function update_now_playing()
 {
@@ -99,6 +131,28 @@ function update_now_playing()
   $.get('/now_playing/', {}, fade_callback(span, 1000));
   clearTimeout(timer_timeout);
   timer_timeout = setTimeout(update_time, 1000);
+}
+
+function validate(id)
+{
+  var data =
+  {
+    title: $("#title" + id).val(),
+    artist: $("#artist" + id).val(),
+    link: $("#link" + id).val()
+  };
+  $.post('/validate/' + id, data, function (d) { update_validate_pending(); });
+}
+
+function nuke(id)
+{
+  $.get('/nuke/' + id, {}, function (d) { update_validate_pending(); });
+}
+
+function update_validate_pending()
+{
+  var span = $("#pending");
+  $.get('/pending/', {}, fade_callback(span, 1000));
 }
 
 function update_next()
@@ -114,9 +168,24 @@ function update_next()
 
 $(document).ready(function()
 {
-  if ($("#timer").length != 0)
+  if ($("#timer").length != 0) // index
   {
     timer_timeout = setTimeout(update_time, 1000);
     timer_votes_reload = setTimeout(update_next, 5000);
   }
+  
+  if ($("#search").length != 0) // add
+  {
+    $("#search").keyup(function(event)
+    {
+      if(event.keyCode == 13) { $("#search_button").click(); }
+    });
+  }
+
+  $.ajaxSetup({
+    beforeSend: function(xhr, settings)
+    {
+      if (!this.crossDomain) { xhr.setRequestHeader("X-CSRFToken", $.cookie("csrftoken")); }
+    }
+  });
 });

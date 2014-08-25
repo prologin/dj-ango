@@ -1,16 +1,15 @@
 import youtube_dl
 import os.path
 
-outdir = "/var/django/DJ_Ango/dj/songs/"
+outdir = "/var/django/DJ_Ango/dj/songs/youtube/"
 ydl = youtube_dl.YoutubeDL({'outtmpl': outdir + '%(title)s(%(id)s).%(ext)s',
                             'format': 'bestaudio',
                             'quiet': True,
                             'restrictfilenames': True})
 ydl.add_default_info_extractors()
 
-def download_audio(ytid):
-  result = ydl.extract_info('http://www.youtube.com/watch?v=' + ytid,
-                            download=False)
+def download_audio(link):
+  result = ydl.extract_info(link, download=False)
   if 'entries' in result:
       video = result['entries'][0]
   else:

@@ -52,39 +52,65 @@ def now_playing(request):
 def next(request):
   return index(request, "dj/next.html")
 
-class YTResult:
+class Result:
   def __init__(self, title, link):
     self.title = title
     self.link = link
 
+class Results:
+  def __init__(self, site, results):
+    self.site = site
+    self.results = results
+
 def yt_search(search):
   yt = build('youtube', 'v3', developerKey='AIzaSyBj5jEAc9hqRzklXD6sO5dYqO0i9b34EBw')
   res = yt.search().list(q=search, maxResults=10, type="video", part="snippet").execute()
-  return [YTResult(r["snippet"]["title"], r["id"]["videoId"]) for r in res["items"]]
+  url = "https://www.youtube.com/watch?v="
+  return [Result(r["snippet"]["title"], url + r["id"]["videoId"]) for r in res["items"]]
 
 def add(request):
   if not request.user.is_authenticated():
     return redirect('/login', prev=request.path)
   user = request.user
   results = None
-  if "search" in request.POST:
-    search = request.POST["search"]
-    if "?v=" in search:
-      results = [YTResult("Direct link", search.split("?v=")[1])]
-    else:
-      results = yt_search(search)
-  if "link" in request.POST:
-    artist = request.POST["artist"] if "artist" in request.POST else "Unknown"
-    link = request.POST["link"] if "link" in request.POST else "Not given"
-    if link and "?v=" in link:
-      link = link.split("?v=")[1]
-    PendingSong(title=request.POST["title"], artist=artist, link=link, user=user).save()
-  if "file" in request.FILES:
-    save_upload(request.FILES["file"], request.POST["title"],
-        request.POST["artist"] if "artist" in request.POST else None)
+  pending = PendingSong.objects.filter(user=user)
+  args = {'pending': pending, 'user': user, 'results': None}
+  return render_to_response('dj/add.html', args,
+      context_instance=RequestContext(request))
+
+def add_results(request, search):
+  user = request.user
+  if not user.is_authenticated():
+    return HttpResponse("You need to be connected")
+  results = []
+  if "?v=" in search:
+    results.append(Results("Youtube", [Result("Direct link", search)]))
+  else:
+    results.append(Results("Youtube", yt_search(search)))
+  results.append(Results("Grooveshark", [Result("Soon", "lol.fr")]))# FIXME
   pending = PendingSong.objects.filter(user=user)
   args = {'pending': pending, 'user': user, 'results': results}
-  return render_to_response('dj/add.html', args,
+  return render_to_response('dj/add_search.html', args,
+      context_instance=RequestContext(request))
+
+def add_pending(request):
+  artist = request.POST["artist"] if "artist" in request.POST else "Unknown"
+  link = request.POST["link"] if "link" in request.POST else "Not given"
+  PendingSong(title=request.POST["title"], artist=artist, link=link, user=request.user).save()
+  return HttpResponse("OK")
+
+def add_upload(request):
+  save_upload(request.FILES["file"], request.POST["title"],
+      request.POST["artist"] if "artist" in request.POST else None)
+  return redirect("/add")
+
+def user_pending(request):
+  user = request.user
+  if not user.is_authenticated():
+    return HttpResponse("You need to be connected")
+  pending = PendingSong.objects.filter(user=user)
+  args = {'pending': pending}
+  return render_to_response('dj/add_pending.html', args,
       context_instance=RequestContext(request))
 
 def save_upload(f, title, artist):
@@ -105,6 +131,7 @@ def save_upload(f, title, artist):
   Song(title=title, artist=artist, file=("upload/" + fname), duration=duration).save()
 
 def download_and_save(pending):
+  print("Downloading %s" % pending)
   try:
     info = youtube.download_audio(pending.link)
   except:
@@ -119,28 +146,42 @@ def download_and_save(pending):
   else:
     artist = Artist(name=artist)
     artist.save()
-  f = info["filename"]
+  f = "youtube/" + info["filename"]
   duration = info["duration"]
   Song(title=pending.title, artist=artist, file=f, duration=duration).save()
 
-def validate(request):
+def validate(request, template='dj/validate.html'):
   if not (request.user.is_authenticated() and request.user.is_superuser):
     return redirect('/')
+  pending = PendingSong.objects.all()
+  return render_to_response(template, {'pending': pending},
+      context_instance=RequestContext(request))
+
+def pending(request):
+  return validate(request, 'dj/pending.html')
+
+def validate_pending(request, i):
   user = request.user
-  if "id" in request.POST and request.user.is_superuser:
-    pending = PendingSong.objects.get(id=request.POST["id"])
+  if request.user.is_superuser:
+    pending = PendingSong.objects.get(id=i)
     pending.title = request.POST["title"]
     pending.artist = request.POST["artist"] if "artist" in request.POST else "Unknown"
     if pending.artist == "":
       pending.artist = "Unknown"
     pending.link = request.POST["link"]
-    if request.POST["action"] == "validate":
-      print("Downloading %s" % pending)
-      threading.Thread(target=download_and_save, args=[pending]).start()
+    threading.Thread(target=download_and_save, args=[pending]).start()
     pending.delete()
-  pending = PendingSong.objects.all()
-  return render_to_response('dj/validate.html', {'pending': pending},
-      context_instance=RequestContext(request))
+    return HttpResponse("OK")
+  else:
+    return HttpResponse("Admin only, GTFO.")
+
+def nuke_pending(request, i):
+  user = request.user
+  if request.user.is_superuser:
+    PendingSong.objects.get(id=i).delete()
+    return HttpResponse("OK")
+  else:
+    return HttpResponse("Admin only, GTFO.")
 
 def vote(request, page, template="dj/vote.html", category="all"):
   if not request.user.is_authenticated():

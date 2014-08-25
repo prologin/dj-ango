@@ -1,0 +1,30 @@
+<div class="panel-body">
+  <form method="post" action="add_upload" enctype="multipart/form-data">{% csrf_token %}
+    <div class="row">
+      <div class="col-xs-6">
+        <div class="input-group">
+          <span class="input-group-addon">Title</span>
+          <input type="text" name="title" class="form-control" placeholder="mandatory" required>
+        </div>
+      </div>
+      <div class="col-xs-6">
+        <div class="input-group">
+          <span class="input-group-addon">Artist</span>
+          <input type="text" name="artist" class="form-control" placeholder="optional">
+        </div>
+      </div>
+    </div>
+    <br/>
+    <div class="row">
+      <div class="col-xs-10">
+        <div class="input-group">
+          <span class="input-group-addon">File</span>
+          <input type="file" name="file" class="filestyle" data-buttonText="">
+        </div>
+      </div>
+      <div class="col-xs-2">
+        <button class="btn btn-default" type="submit" style="width: 100%">Upload</button>
+      </div>
+    </div>
+  </form>
+</div>
