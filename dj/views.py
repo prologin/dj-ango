@@ -53,20 +53,32 @@ def next(request):
   return index(request, "dj/next.html")
 
 class Result:
-  def __init__(self, title, link):
+  def __init__(self, title, link, duration):
     self.title = title
     self.link = link
+    self.duration = duration
 
 class Results:
   def __init__(self, site, results):
     self.site = site
     self.results = results
 
+def pt2str(t):
+  s = t[2:-1]
+  m, s = s.split("M") if "M" in s else ("0" , s)
+  if len(s) == 1:
+    s = '0' + s
+  return m + ":" + s
+
 def yt_search(search):
   yt = build('youtube', 'v3', developerKey='AIzaSyBj5jEAc9hqRzklXD6sO5dYqO0i9b34EBw')
-  res = yt.search().list(q=search, maxResults=10, type="video", part="snippet").execute()
+  res = yt.search().list(q=search, maxResults=10, type="video", part="id,snippet").execute()
+  ids = ",".join(r["id"]["videoId"] for r in res["items"])
+  res = yt.videos().list(id=ids, part='id,snippet,contentDetails').execute()
+  for r in res["items"]:
+    r["len"] = pt2str(r["contentDetails"]["duration"])
   url = "https://www.youtube.com/watch?v="
-  return [Result(r["snippet"]["title"], url + r["id"]["videoId"]) for r in res["items"]]
+  return [Result(r["snippet"]["title"], url + r["id"],  r["len"]) for r in res["items"]]
 
 def add(request):
   if not request.user.is_authenticated():
@@ -87,7 +99,7 @@ def add_results(request, search):
     results.append(Results("Youtube", [Result("Direct link", search)]))
   else:
     results.append(Results("Youtube", yt_search(search)))
-  results.append(Results("Grooveshark", [Result("Soon", "lol.fr")]))# FIXME
+  results.append(Results("Grooveshark", [Result("Soon", "lol.fr", 42)]))# FIXME
   pending = PendingSong.objects.filter(user=user)
   args = {'pending': pending, 'user': user, 'results': results}
   return render_to_response('dj/add_search.html', args,
