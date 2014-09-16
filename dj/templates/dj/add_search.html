@@ -42,7 +42,7 @@
         <div id="tab-{{s.site}}" class="panel-collapse collapse in">
           <div class="panel-body">
             {% for r in s.results %}
-            <button class="btn btn-success btn-xs" onclick="add_pending('{{r.link}}')">
+            <button class="btn btn-success btn-xs"onclick="add_pending('{{r.link}}', '{{r.source}}')">
               <span class="glyphicon glyphicon-cloud-upload"></span>
             </button>
             &nbsp;&nbsp; {{r.title}} ({{r.duration}})

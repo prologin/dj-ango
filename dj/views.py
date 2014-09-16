@@ -10,10 +10,17 @@ from DJ_Ango.dj.player import MPDPlayer
 from DJ_Ango.dj.utils import compute_time
 from apiclient.discovery import build
 import DJ_Ango.dj.youtube as youtube
+import DJ_Ango.dj.groove as groove
+from hsaudiotag import auto
 import threading
 import math
 import re
+import os
 import datetime
+
+def sec2str(sec):
+  m, s = divmod(sec, 60)
+  return "%d:%02d" % (m, s)
 
 def index(request, template="dj/index.html"):
   if not request.user.is_authenticated():
@@ -35,12 +42,15 @@ def index(request, template="dj/index.html"):
     mpdplayer.set_vol(request.POST["volume"])
   size_next = 5
   songs = Song.objects.all().annotate(Count('votes')).order_by('-votes__count')
+  songs = songs[:size_next]
+  for s in songs:
+    setattr(s, 'time', sec2str(s.duration))
   playing = player.song
   elapsed = datetime.datetime.now() - player.start_time
   cm, cs = divmod(elapsed.seconds, 60)
   dm, ds = divmod(playing.duration, 60)
   time = "%d:%02d/%d:%02d" % (cm, cs, dm, ds)
-  args = {'songs': songs[:size_next], 'playing': playing, 'time': time, 'user': user}
+  args = {'songs': songs, 'playing': playing, 'time': time, 'user': user}
   if user.is_superuser:
     args["volume"] = Player.objects.get(id=1).volume
   return render_to_response(template, args,
@@ -53,10 +63,11 @@ def next(request):
   return index(request, "dj/next.html")
 
 class Result:
-  def __init__(self, title, link, duration):
+  def __init__(self, title, link, duration, source="youtube"):
     self.title = title
     self.link = link
     self.duration = duration
+    self.source = source
 
 class Results:
   def __init__(self, site, results):
@@ -80,6 +91,18 @@ def yt_search(search):
   url = "https://www.youtube.com/watch?v="
   return [Result(r["snippet"]["title"], url + r["id"],  r["len"]) for r in res["items"]]
 
+def gs_search(search):
+  ret = []
+  for s in groove.searchSong(search):
+    try:
+      duration = sec2str(int(s["EstimateDuration"].split(".")[0]))
+      source = "grooveshark-" + s["SongID"] + "-" + s["ArtistID"]
+      p = Result(s["ArtistName"] + " - " + s["SongName"], "http://cestlej.eu/", duration, source)
+      ret.append(p)
+    except Exception as e:
+      print(e)
+  return ret
+
 def add(request):
   if not request.user.is_authenticated():
     return redirect('/login', prev=request.path)
@@ -99,7 +122,7 @@ def add_results(request, search):
     results.append(Results("Youtube", [Result("Direct link", search)]))
   else:
     results.append(Results("Youtube", yt_search(search)))
-  results.append(Results("Grooveshark", [Result("Soon", "lol.fr", 42)]))# FIXME
+  results.append(Results("Grooveshark", gs_search(search)))
   pending = PendingSong.objects.filter(user=user)
   args = {'pending': pending, 'user': user, 'results': results}
   return render_to_response('dj/add_search.html', args,
@@ -108,7 +131,8 @@ def add_results(request, search):
 def add_pending(request):
   artist = request.POST["artist"] if "artist" in request.POST else "Unknown"
   link = request.POST["link"] if "link" in request.POST else "Not given"
-  PendingSong(title=request.POST["title"], artist=artist, link=link, user=request.user).save()
+  src = request.POST["source"] if "source" in request.POST else "?"
+  PendingSong(title=request.POST["title"], artist=artist, link=link, src=src, user=request.user).save()
   return HttpResponse("OK")
 
 def add_upload(request):
@@ -144,12 +168,17 @@ def save_upload(f, title, artist):
 
 def download_and_save(pending):
   print("Downloading %s" % pending)
+  if pending.src == "youtube":
+    yt_dl(pending)
+  elif pending.src.startswith("grooveshark"):
+    gs_dl(pending)
+
+def yt_dl(pending):
   try:
     info = youtube.download_audio(pending.link)
   except:
     print("Couldn't download %s (%s)" % (pending.title, pending.link))
     return
-  title = info["title"]
   artist = pending.artist
   if artist is None:
     artist = Artist.objects.get(name="Unknown")
@@ -160,6 +189,25 @@ def download_and_save(pending):
     artist.save()
   f = "youtube/" + info["filename"]
   duration = info["duration"]
+  Song(title=pending.title, artist=artist, file=f, duration=duration).save()
+
+def gs_dl(pending):
+  sid, aid = pending.src.split("-")[1:3]
+  path = "dj/songs/grooveshark/"
+  print(pending.title)
+  f = groove.downloadSong(sid, aid, pending.title, pending.artist, path)
+  if not os.path.isfile(path + f):
+    return
+  artist = pending.artist
+  if artist is None:
+    artist = a if a != "" else Artist.objects.get(name="Unknown")
+  elif Artist.objects.filter(name=artist).exists():
+    artist = Artist.objects.get(name=artist)
+  else:
+    artist = Artist(name=artist)
+    artist.save()
+  duration = auto.File(path + f).duration
+  f = "grooveshark/" + f
   Song(title=pending.title, artist=artist, file=f, duration=duration).save()
 
 def validate(request, template='dj/validate.html'):
@@ -210,7 +258,10 @@ def vote(request, page, template="dj/vote.html", category="all"):
   else:
     songs = Song.objects.all().annotate(Count('votes')).order_by('-votes__count')
   p = Paginator(songs, 100 if "search" in request.POST else 20)
-  args = {'page': p.page(page), 'num_pages': p.num_pages, 'category': category, 'user': user}
+  page = p.page(page)
+  for s in page:
+    setattr(s, 'time', sec2str(s.duration))
+  args = {'page': page, 'num_pages': p.num_pages, 'category': category, 'user': user}
   return render_to_response(template, args,
       context_instance=RequestContext(request))
 

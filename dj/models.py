@@ -32,7 +32,8 @@ class PendingSong(models.Model):
 
     title = models.CharField(max_length=256, verbose_name='Song title')
     artist = models.CharField(max_length=256, verbose_name='Song artist')
-    link = models.CharField(max_length=64, verbose_name='Youtube link')
+    src = models.CharField(max_length=256, verbose_name='Source')
+    link = models.CharField(max_length=64, verbose_name='Link')
     user = models.ForeignKey(auth.User, verbose_name="Submitter")
 
     def __str__(self):

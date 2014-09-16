@@ -2,7 +2,7 @@
 <div class="col-md-12">
   <div class="panel panel-default">
     <div class="panel-body">
-      {% if song.artist and song.artist.name != "Unknown" %}{{song.artist}} - {% endif %}{{song.title}}
+      {% if song.artist and song.artist.name != "Unknown" %}{{song.artist}} - {% endif %}{{song.title}} ({{song.time}})
       <span style="float: right">
         <span class="badge">{{song.votes__count}}</span>
         {% if user in song.votes.all %}

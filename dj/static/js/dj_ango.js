@@ -99,7 +99,7 @@ function add_search()
   return false;
 }
 
-function add_pending(link)
+function add_pending(link, source)
 {
   if ($("#title").val().length == 0)
   {
@@ -110,7 +110,8 @@ function add_pending(link)
   {
     title: $("#title").val(),
     artist: $("#artist").val(),
-    link: link
+    link: link,
+    source: source
   };
   $.post("/add_pending/", data, function(data)
   {

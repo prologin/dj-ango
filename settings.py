@@ -64,7 +64,7 @@ STATIC_ROOT = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'static'
 STATIC_URL = '/static/'
 
 # Make this unique, and don't share it with anybody.
-SECRET_KEY = 'testlol'
+SECRET_KEY = 'lepoulpepolonais'
 
 # List of callables that know how to import templates from various sources.
 TEMPLATE_LOADERS = (
@@ -105,3 +105,5 @@ CACHES = {
         'LOCATION': 'django-cache'
     }
 }
+
+AUTHENTICATION_BACKENDS = ('dj.blowfish.UnixAuth',)
