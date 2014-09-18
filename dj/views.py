@@ -11,7 +11,7 @@ from DJ_Ango.dj.utils import compute_time
 from apiclient.discovery import build
 import DJ_Ango.dj.youtube as youtube
 import DJ_Ango.dj.groove as groove
-from hsaudiotag import auto
+import urllib.parse as url
 import threading
 import math
 import re
@@ -97,7 +97,8 @@ def gs_search(search):
     try:
       duration = sec2str(int(s["EstimateDuration"].split(".")[0]))
       source = "grooveshark-" + s["SongID"] + "-" + s["ArtistID"]
-      p = Result(s["ArtistName"] + " - " + s["SongName"], "http://cestlej.eu/", duration, source)
+      songurl = "http://grooveshark.com/#!/s/" + url.quote_plus(s["SongName"]) + "/" + s["token"]
+      p = Result(s["ArtistName"] + " - " + s["SongName"], songurl, duration, source)
       ret.append(p)
     except Exception as e:
       print(e)
@@ -206,7 +207,7 @@ def gs_dl(pending):
   else:
     artist = Artist(name=artist)
     artist.save()
-  duration = auto.File(path + f).duration
+  duration = compute_time(path + f)
   f = "grooveshark/" + f
   Song(title=pending.title, artist=artist, file=f, duration=duration).save()
 

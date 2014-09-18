@@ -84,7 +84,10 @@ def getResultsFromSearch(query, what="Songs"):
   try:
     return j["result"]["result"]["Songs"]
   except:
-    return j["result"]["result"]
+    try:
+      return j["result"]["result"]
+    except:
+      return []
 
 #Get all songs by a certain artist
 def artistGetSongsEx(id, isVerified):
@@ -204,8 +207,26 @@ def markSongDownloadedEx(streamServer, songID, streamKey):
   conn.request("POST", "/more.php?" + p["method"], json.JSONEncoder().encode(p), jsqueue[3])
   return json.JSONDecoder().decode(gzip.GzipFile(fileobj=(BytesIO(conn.getresponse().read()))).read().decode("ascii"))["result"]
 
+#Get the token corresponding to the SongID to compute url
+def getTokenForSong(songID):
+  p = {}
+  p["parameters"] = {}
+  p["parameters"]["songID"] = songID
+  p["parameters"]["country"] = h["country"]
+  p["header"] = h
+  p["header"]["client"] = jsqueue[0]
+  p["header"]["clientRevision"] = jsqueue[1]
+  p["header"]["token"] = prepToken("getTokenForSong", jsqueue[2])
+  p["method"] = "getTokenForSong"
+  conn = httplib.HTTPConnection(URL)
+  conn.request("POST", "/more.php?" + p["method"], json.JSONEncoder().encode(p), jsqueue[3])
+  return json.JSONDecoder().decode(gzip.GzipFile(fileobj=(BytesIO(conn.getresponse().read()))).read().decode("ascii"))["result"]["Token"]
+
 def searchSong(s):
-  return getResultsFromSearch(s, "Songs")[:10]
+  res = getResultsFromSearch(s, "Songs")[:10]
+  for r in res:
+    r["token"] = getTokenForSong(r["SongID"])
+  return res
 
 def downloadSong(songID, artistID, title, artist, path):
   queueID = getQueueID()

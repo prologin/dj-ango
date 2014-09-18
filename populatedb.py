@@ -9,7 +9,9 @@ from django.contrib.auth.models import User
 import os
 import os.path
 import re
+import smtplib
 from hsaudiotag import auto
+from hashlib import md5
 
 #if len(sys.argv) < 2:
 #  print("usage: %s directory" % sys.argv[0])
@@ -17,14 +19,17 @@ from hsaudiotag import auto
 
 setup_environ(settings)
 
-#with open("shadow.blowfish") as passwd:
-#  for l in passwd.read().split("\n"):
-#    if l != "":
-#      user = l.split(":")[0]
-#      password = ""
-#      print("user: %s, pass: %s" % (user, password))
-#      new = User.objects.create_user(user, user + "@epita.fr", password)
-#      new.save()
+with open("paralleles2017") as passwd:
+  for l in passwd.read().split("\n"):
+    if l != "":
+      user = l
+      password = md5(("lol" + l).encode("ascii")).hexdigest()[-6:]
+      print("%s %s" % (user, password))
+#      try:
+#        new = User.objects.create_user(user, user + "@epita.fr", password)
+#        new.save()
+#      except:
+#        pass
 
 #for s in Song.objects.all():
 #  try:
