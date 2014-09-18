@@ -122,8 +122,8 @@ def add_results(request, search):
   if "?v=" in search:
     results.append(Results("Youtube", [Result("Direct link", search)]))
   else:
+    results.append(Results("Grooveshark", gs_search(search)))
     results.append(Results("Youtube", yt_search(search)))
-  results.append(Results("Grooveshark", gs_search(search)))
   pending = PendingSong.objects.filter(user=user)
   args = {'pending': pending, 'user': user, 'results': results}
   return render_to_response('dj/add_search.html', args,
@@ -272,14 +272,18 @@ def vote_category(request, c, page):
 def vote_get_category(request, c, page):
   return vote(request, page, "dj/vote_page.html", c)
 
-def add_vote(request, song_id):
-  song = Song.objects.get(id=song_id)
+def add_vote(request):
+  if not "song_id" in request.POST:
+    return HttpResponse("Nothing to do.")
+  song = Song.objects.get(id=int(request.POST["song_id"]))
   song.votes.add(User.objects.get(username=request.user))
   song.save()
   return HttpResponse("OK")
 
-def del_vote(request, song_id):
-  song = Song.objects.get(id=song_id)
+def del_vote(request):
+  if not "song_id" in request.POST:
+    return HttpResponse("Nothing to do.")
+  song = Song.objects.get(id=int(request.POST["song_id"]))
   song.votes.remove(User.objects.get(username=request.user))
   song.save()
   return HttpResponse("OK")

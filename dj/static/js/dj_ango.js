@@ -74,22 +74,22 @@ function vote_page(p, c)
 
 function add_vote(id, p, c)
 {
-  $.get("/vote/add/" + id, {}, function(data) { vote_page(p, c); });
+  $.post("/vote/add/", {song_id: id}, function(data) { vote_page(p, c); });
 }
 
 function del_vote(id, p, c)
 {
-  $.get("/vote/rm/" + id, {}, function(data) { vote_page(p, c); });
+  $.post("/vote/rm/", {song_id: id}, function(data) { vote_page(p, c); });
 }
 
 function add_vote_idx(id)
 {
-  $.get("/vote/add/" + id, {}, function(data) { update_next(); });
+  $.post("/vote/add/", {song_id: id}, function(data) { update_next(); });
 }
 
 function del_vote_idx(id)
 {
-  $.get("/vote/rm/" + id, {}, function(data) { update_next(); });
+  $.post("/vote/rm/", {song_id: id}, function(data) { update_next(); });
 }
 
 function add_search()
