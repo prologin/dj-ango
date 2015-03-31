@@ -12,6 +12,7 @@ import subprocess
 import gzip
 import threading
 import json
+import time
 
 _useragent = "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/536.5 (KHTML, like Gecko) Chrome/19.0.1084.56 Safari/536.5"
 _token = None
@@ -40,8 +41,6 @@ entrystring = \
 by George Stephanos <gaf.stephanos@gmail.com>
 """
 
-song_cache = {}
-
 #Generate a token from the method and the secret string (which changes once in a while)
 def prepToken(method, secret):
   rnd = (''.join(random.choice(string.hexdigits) for x in range(6))).lower()
@@ -66,6 +65,7 @@ def getToken():
   _token = json.JSONDecoder().decode(gzip.GzipFile(fileobj=(BytesIO(conn.getresponse().read()))).read().decode("ascii"))["result"]
 
 getToken()
+last_update = time.time()
 
 #Process a search and return the result as a list.
 def getResultsFromSearch(query, what="Songs"):
@@ -223,12 +223,18 @@ def getTokenForSong(songID):
   return json.JSONDecoder().decode(gzip.GzipFile(fileobj=(BytesIO(conn.getresponse().read()))).read().decode("ascii"))["result"]["Token"]
 
 def searchSong(s):
-  res = getResultsFromSearch(s, "Songs")[:10]
-  for r in res:
-    r["token"] = getTokenForSong(r["SongID"])
-  return res
+  return getResultsFromSearch(s, "Songs")[:10]
+
+def updateToken():
+  global last_update
+  t = time.time()
+  if t - last_update > 600:
+    getToken()
+    print("new token")
+    last_update = t
 
 def downloadSong(songID, artistID, title, artist, path):
+  updateToken()
   queueID = getQueueID()
   song = {'SongID': songID, 'ArtistID': artistID}
   addSongsToQueue(song, queueID)

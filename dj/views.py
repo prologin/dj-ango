@@ -97,10 +97,10 @@ def gs_search(search):
     try:
       duration = sec2str(int(s["EstimateDuration"].split(".")[0]))
       source = "grooveshark-" + s["SongID"] + "-" + s["ArtistID"]
-      songurl = "http://grooveshark.com/#!/s/" + url.quote_plus(s["SongName"]) + "/" + s["token"]
-      p = Result(s["ArtistName"] + " - " + s["SongName"], songurl, duration, source)
+      p = Result(s["ArtistName"] + " - " + s["SongName"], "", duration, source)
       ret.append(p)
     except Exception as e:
+      print("gs_search")
       print(e)
   return ret
 
@@ -130,11 +130,20 @@ def add_results(request, search):
       context_instance=RequestContext(request))
 
 def add_pending(request):
-  artist = request.POST["artist"] if "artist" in request.POST else "Unknown"
-  link = request.POST["link"] if "link" in request.POST else "Not given"
-  src = request.POST["source"] if "source" in request.POST else "?"
-  PendingSong(title=request.POST["title"], artist=artist, link=link, src=src, user=request.user).save()
-  return HttpResponse("OK")
+  try:
+    artist = request.POST["artist"] if "artist" in request.POST else "Unknown"
+    if "link" in request.POST:
+      if request.POST["link"] == "" and request.POST["source"].startswith("grooveshark"):
+        token = groove.getTokenForSong(request.POST["source"].split("-")[1])
+        link = "http://grooveshark.com/#!/s/" + url.quote_plus(request.POST["title"]) + "/" + token
+      else:
+        link = request.POST["link"] if request.POST["link"] != "" else "Not given"
+    src = request.POST["source"] if "source" in request.POST else "?"
+    PendingSong(title=request.POST["title"], artist=artist, link=link, src=src, user=request.user).save()
+    return HttpResponse("OK")
+  except Exception as e:
+    print("add_pending")
+    print(e)
 
 def add_upload(request):
   save_upload(request.FILES["file"], request.POST["title"],
@@ -193,9 +202,9 @@ def yt_dl(pending):
   Song(title=pending.title, artist=artist, file=f, duration=duration).save()
 
 def gs_dl(pending):
+  print("src: " + pending.src)
   sid, aid = pending.src.split("-")[1:3]
   path = "dj/songs/grooveshark/"
-  print(pending.title)
   f = groove.downloadSong(sid, aid, pending.title, pending.artist, path)
   if not os.path.isfile(path + f):
     return
