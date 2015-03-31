@@ -1,6 +1,6 @@
 from mpd import MPDClient
 from django.db.models import Count
-from DJ_Ango.dj.models import *
+from dj.models import *
 import datetime
 import time
 import os
@@ -46,28 +46,30 @@ class MPDPlayer:
       while not self.should_stop:
         self.client.connect("127.0.0.1", 4251)
         song = player.song
-        print("============== playlist ====================") # Ca pete ici
+        print("============== playlist ====================")
         print(self.client.playlist())
         print("============== playlist ====================")
         if self.client.playlist():
-          self.client.idle(["playlist"]) #end of song
+          self.client.idle("playlist") #end of song
           self.client.clear()
         next = Song.objects.all().annotate(Count('votes')) \
             .order_by('-votes__count')[0]
+        self.client.disconnect()
         if next.votes.count() == 0:
           next = random.choice(Song.objects.all())
         print("next: " + next.file)
+        self.client.connect("127.0.0.1", 4251)
         try:
           self.client.add(next.file)
         except:
           self.client.update()
-          self.client.idle(["update"]) #start
-          self.client.idle(["update"]) #end
+          self.client.idle("update") #start
+          self.client.idle("update") #end
           self.client.add(next.file)
         self.client.play()
-        self.client.idle(["playlist"]) #add
-        self.client.idle(["playlist"]) #add is sending 2 events
-        self.client.idle(["playlist"]) #play
+        #self.client.idle("playlist") #add
+        #self.client.idle("playlist") #add is sending 2 events
+        #self.client.idle("playlist") #play
         next.votes = []
         next.save()
         player.song = next

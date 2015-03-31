@@ -2,15 +2,15 @@ from django.template import RequestContext
 from django.core.paginator import Paginator
 from django.shortcuts import render_to_response, redirect
 from django.db.models import Count, Q
+from dj.models import *
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
 from django.http import HttpResponse
-from DJ_Ango.dj.models import *
-from DJ_Ango.dj.player import MPDPlayer
-from DJ_Ango.dj.utils import compute_time
+from dj.player import MPDPlayer
+from dj.utils import compute_time
 from apiclient.discovery import build
-import DJ_Ango.dj.youtube as youtube
-import DJ_Ango.dj.groove as groove
+import dj.youtube as youtube
+import dj.groove as groove
 import urllib.parse as url
 import threading
 import math

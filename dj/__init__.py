@@ -1,4 +1,4 @@
-from DJ_Ango.dj.player import MPDPlayer
+from dj.player import MPDPlayer
 import threading
 
 player = MPDPlayer()

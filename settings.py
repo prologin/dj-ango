@@ -84,7 +84,7 @@ MIDDLEWARE_CLASSES = (
 ROOT_URLCONF = 'urls'
 
 TEMPLATE_DIRS = (
-    'dj/templates/'
+    'dj/templates/',
 )
 
 INSTALLED_APPS = (
