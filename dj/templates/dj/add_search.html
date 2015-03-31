@@ -36,7 +36,9 @@
       <div class="panel panel-default">
         <a class="panel-heading" style="display: block" data-toggle="collapse" data-parent="#accordion" href="#tab-{{s.site}}">
           <h4 class="panel-title">
-            {{s.site}} {% if s.site == "Grooveshark" %}(better quality, no right control){% else %}(can't download videos with tagged songs){% endif %}
+            {{s.site}} {% if s.site == "Grooveshark" %}(better quality, no
+            right control){% else %}<span style="color: red">/!\ can't
+              download videos with tagged songs /!\</span>{% endif %}
           </h4>
         </a>
         <div id="tab-{{s.site}}" class="panel-collapse collapse in">
