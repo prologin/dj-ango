@@ -19,7 +19,10 @@ import os
 import datetime
 
 def sec2str(sec):
-  m, s = divmod(sec, 60)
+  try:
+    m, s = divmod(int(sec), 60)
+  except Exception as e:
+    print("sec2str: %s" % e)
   return "%d:%02d" % (m, s)
 
 def index(request, template="dj/index.html"):
