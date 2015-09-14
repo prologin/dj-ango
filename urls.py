@@ -23,4 +23,5 @@ urlpatterns = patterns('',
     url(r'^nuke/(\d+)/?$', views.nuke_pending, name='dj.nuke_pending'),
     url(r'^login/?$', views.login, name='dj.login'),
     url(r'^logout/?$', views.logout, name='dj.logout'),
+    url('', include('django_prometheus.urls')),
 )

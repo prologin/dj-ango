@@ -1,7 +1,8 @@
 from django.template import RequestContext
 from django.core.paginator import Paginator
 from django.shortcuts import render_to_response, redirect
-from django.db.models import Count, Q
+from django.db.models import Count, Sum, Q
+from prometheus_client import Gauge
 from dj.models import *
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
@@ -316,3 +317,12 @@ def login(request, prev='/'):
 def logout(request):
   auth_logout(request)
   return redirect('/login')
+
+
+# Prometheus metrics
+
+prom_votes = Gauge('django_vote_count', 'Number of votes')
+prom_votes.set_function(lambda: Song.objects.all().annotate(Count('votes')).aggregate(Sum('votes__count'))['votes__count__sum'])
+
+prom_voting = Gauge('django_voting_user_count', 'Number of voting users')
+prom_voting.set_function(lambda: len(set(u for s in Song.objects.all().annotate(Count('votes')).filter(votes__count__gt=0) for u in s.votes.all())))

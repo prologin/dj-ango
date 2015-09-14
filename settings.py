@@ -74,11 +74,13 @@ TEMPLATE_LOADERS = (
 )
 
 MIDDLEWARE_CLASSES = (
+    'django_prometheus.middleware.PrometheusBeforeMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'django_prometheus.middleware.PrometheusAfterMiddleware',
 )
 
 ROOT_URLCONF = 'urls'
@@ -96,7 +98,8 @@ INSTALLED_APPS = (
     'django.contrib.admin',
     'django.contrib.admindocs',
     'django.contrib.staticfiles',
-    'dj'
+    'dj',
+    'django_prometheus',
 )
 
 CACHES = {

@@ -1,5 +1,6 @@
 from django.contrib.auth import models as auth
 from django.db import models
+from django_prometheus.models import ExportModelOperationsMixin
 
 class Artist(models.Model):
     """
@@ -25,7 +26,7 @@ class Song(models.Model):
     def __str__(self):
         return '%s (%s)' % (self.title, self.artist)
 
-class PendingSong(models.Model):
+class PendingSong(ExportModelOperationsMixin('pending_song'), models.Model):
     """
     Represents a youtube song waiting to be validated.
     """
