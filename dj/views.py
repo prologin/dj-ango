@@ -11,7 +11,6 @@ from dj.player import MPDPlayer
 from dj.utils import compute_time
 from apiclient.discovery import build
 import dj.youtube as youtube
-import dj.groove as groove
 import urllib.parse as url
 import threading
 import math
@@ -95,19 +94,6 @@ def yt_search(search):
   url = "https://www.youtube.com/watch?v="
   return [Result(r["snippet"]["title"], url + r["id"],  r["len"]) for r in res["items"]]
 
-def gs_search(search):
-  ret = []
-  for s in groove.searchSong(search):
-    try:
-      duration = sec2str(int(s["EstimateDuration"].split(".")[0]))
-      source = "grooveshark-" + s["SongID"] + "-" + s["ArtistID"]
-      p = Result(s["ArtistName"] + " - " + s["SongName"], "", duration, source)
-      ret.append(p)
-    except Exception as e:
-      print("gs_search")
-      print(e)
-  return ret
-
 def add(request):
   if not request.user.is_authenticated():
     return redirect('/login', prev=request.path)
@@ -126,7 +112,6 @@ def add_results(request, search):
   if "?v=" in search:
     results.append(Results("Youtube", [Result("Direct link", search)]))
   else:
-    results.append(Results("Grooveshark", gs_search(search)))
     results.append(Results("Youtube", yt_search(search)))
   pending = PendingSong.objects.filter(user=user)
   args = {'pending': pending, 'user': user, 'results': results}
@@ -137,11 +122,7 @@ def add_pending(request):
   try:
     artist = request.POST["artist"] if "artist" in request.POST else "Unknown"
     if "link" in request.POST:
-      if request.POST["link"] == "" and request.POST["source"].startswith("grooveshark"):
-        token = groove.getTokenForSong(request.POST["source"].split("-")[1])
-        link = "http://grooveshark.com/#!/s/" + url.quote_plus(request.POST["title"]) + "/" + token
-      else:
-        link = request.POST["link"] if request.POST["link"] != "" else "Not given"
+      link = request.POST["link"] if request.POST["link"] != "" else "Not given"
     src = request.POST["source"] if "source" in request.POST else "?"
     PendingSong(title=request.POST["title"], artist=artist, link=link, src=src, user=request.user).save()
     return HttpResponse("OK")
@@ -184,8 +165,6 @@ def download_and_save(pending):
   print("Downloading %s" % pending)
   if pending.src == "youtube":
     yt_dl(pending)
-  elif pending.src.startswith("grooveshark"):
-    gs_dl(pending)
 
 def yt_dl(pending):
   try:
@@ -203,25 +182,6 @@ def yt_dl(pending):
     artist.save()
   f = "youtube/" + info["filename"]
   duration = info["duration"]
-  Song(title=pending.title, artist=artist, file=f, duration=duration).save()
-
-def gs_dl(pending):
-  print("src: " + pending.src)
-  sid, aid = pending.src.split("-")[1:3]
-  path = "dj/songs/grooveshark/"
-  f = groove.downloadSong(sid, aid, pending.title, pending.artist, path)
-  if not os.path.isfile(path + f):
-    return
-  artist = pending.artist
-  if artist is None:
-    artist = a if a != "" else Artist.objects.get(name="Unknown")
-  elif Artist.objects.filter(name=artist).exists():
-    artist = Artist.objects.get(name=artist)
-  else:
-    artist = Artist(name=artist)
-    artist.save()
-  duration = compute_time(path + f)
-  f = "grooveshark/" + f
   Song(title=pending.title, artist=artist, file=f, duration=duration).save()
 
 def validate(request, template='dj/validate.html'):
