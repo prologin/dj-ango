@@ -1,1 +1,6 @@
-pylast
+python-mpd2
+psycopg2
+hsaudiotag3k
+google-api-python-client
+youtube-dl
+django-prometheus
