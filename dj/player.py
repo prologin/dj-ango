@@ -53,7 +53,7 @@ class MPDPlayer:
           self.client.idle("playlist") #end of song
           self.client.clear()
         next = Song.objects.all().annotate(Count('votes')) \
-            .order_by('-votes__count')[0]
+            .order_by('-votes__count', 'id')[0]
         self.client.disconnect()
         if next.votes.count() == 0:
           next = random.choice(Song.objects.all())

@@ -38,13 +38,8 @@ def index(request, template="dj/index.html"):
       song = Song.objects.get(id=request.POST["id"])
       song.votes.remove(User.objects.get(username=user))
   player = Player.objects.get(id=1)
-  if "volume" in request.POST and user.is_superuser:
-    player.volume = request.POST["volume"]
-    player.save()
-    mpdplayer = MPDPlayer()
-    mpdplayer.set_vol(request.POST["volume"])
   size_next = 5
-  songs = Song.objects.all().annotate(Count('votes')).order_by('-votes__count')
+  songs = Song.objects.all().annotate(Count('votes')).order_by('-votes__count', 'id')
   songs = songs[:size_next]
   for s in songs:
     setattr(s, 'time', sec2str(s.duration))
@@ -225,12 +220,12 @@ def vote(request, page, template="dj/vote.html", category="all"):
     search = request.POST["search"]
     songs = Song.objects\
         .filter(Q(title__icontains=search) | Q(artist__name__icontains=search))\
-        .annotate(Count('votes')).order_by('-votes__count')
+        .annotate(Count('votes')).order_by('-votes__count', 'id')
   elif category != "all":
     songs = Song.objects.all().filter(file__startswith=(category + "/"))\
-            .annotate(Count('votes')).order_by('-votes__count')
+            .annotate(Count('votes')).order_by('-votes__count', 'id')
   else:
-    songs = Song.objects.all().annotate(Count('votes')).order_by('-votes__count')
+    songs = Song.objects.all().annotate(Count('votes')).order_by('-votes__count', 'id')
   p = Paginator(songs, 100 if "search" in request.POST else 20)
   page = p.page(page)
   for s in page:
