@@ -1,8 +1,8 @@
-from django.conf.urls import patterns, include, url
+from django.conf.urls import include, url
 from django.contrib import admin
 from dj import views
 
-urlpatterns = patterns('',
+urlpatterns = [
     url(r'^admin/', include(admin.site.urls)),
     url(r'^/?$', views.index, name='dj.index'),
     url(r'^now_playing/?$', views.now_playing, name='dj.now_playing'),
@@ -24,4 +24,4 @@ urlpatterns = patterns('',
     url(r'^login/?$', views.login, name='dj.login'),
     url(r'^logout/?$', views.logout, name='dj.logout'),
     url('', include('django_prometheus.urls')),
-)
+]

@@ -1,79 +1,76 @@
-from mpd import MPDClient
-from django.db.models import Count
-from dj.models import *
-import datetime
-import time
-import os
-import os.path
-import atexit
+import contextlib
+import logging
 import random
 
-class MPDPlayer:
-  instance = None
+from django.conf import settings
+from django.db.models import Count
+from mpd import MPDClient
 
-  def __init__(self):
-    if not MPDPlayer.instance:
-      MPDPlayer.instance = MPDPlayer.__Player()
+import dj.models
 
-  def __getattr__(self, name):
-    return getattr(self.instance, name)
+logger = logging.getLogger('dj.player')
 
-  class __Player:
+
+class _Player:
     def __init__(self):
-      self.client = MPDClient()
-      self.should_stop = False
-      atexit.register(os.remove, "running")
+        self.should_stop = False
 
-    def set_vol(self, vol):
-      try:
-        self.client.setvol(int(vol))
-      except:
-        print("Could not set volume.")
+    def set_volume(self, volume):
+        with self.client() as client:
+            client.setvol(int(volume))
 
     def stop(self):
-      self.should_stop = True
+        self.should_stop = True
+
+    @contextlib.contextmanager
+    def client(self):
+        client = MPDClient()
+        client.connect(*settings.MPD_ADDRESS)
+        yield client
+        client.disconnect()
 
     def player_thread(self):
-      if os.path.isfile("running"):
-        return
-      open("running", "w+")
-      time.sleep(2)
-      player = Player.objects.all().get(id=1)
-      self.client = MPDClient()
-      self.client.connect("127.0.0.1", 4251)
-      self.client.consume(1)
-      self.client.disconnect()
-      while not self.should_stop:
-        self.client.connect("127.0.0.1", 4251)
-        song = player.song
-        print("============== playlist ====================")
-        print(self.client.playlist())
-        print("============== playlist ====================")
-        if self.client.playlist():
-          self.client.idle("playlist") #end of song
-          self.client.clear()
-        next = Song.objects.all().annotate(Count('votes')) \
-            .order_by('-votes__count', 'id')[0]
-        self.client.disconnect()
-        if next.votes.count() == 0:
-          next = random.choice(Song.objects.all())
-        print("next: " + next.file)
-        self.client.connect("127.0.0.1", 4251)
-        try:
-          self.client.add(next.file)
-        except:
-          self.client.update()
-          self.client.idle("update") #start
-          self.client.idle("update") #end
-          self.client.add(next.file)
-        self.client.play()
-        #self.client.idle("playlist") #add
-        #self.client.idle("playlist") #add is sending 2 events
-        #self.client.idle("playlist") #play
-        next.votes = []
-        next.save()
-        player.song = next
-        player.start_time = datetime.datetime.now()
-        player.save()
-        self.client.disconnect()
-      self.client.close()
+        state = dj.models.Player.objects.first()
+
+        with self.client() as client:
+            client.consume(1)
+
+        while not self.should_stop:
+            with self.client() as client:
+                playlist = client.playlist()
+                logger.debug("Playlist: %s", playlist)
+                if playlist:
+                    # end of song
+                    client.idle("playlist")
+                    client.clear()
+
+            next = (dj.models.Song.objects.annotate(vote_count=Count('votes'))
+                    .order_by('-vote_count', 'id'))[0]
+
+            if next.votes.count() == 0:
+                # not enough votes, choose randomly
+                songs = dj.models.Song.objects.all()
+                next = songs[random.randint(0, songs.count() - 1)]
+
+            logger.debug("Next song: %s (%s)", next.file, next)
+
+            with self.client() as client:
+                try:
+                    client.add(next.file)
+                except Exception:
+                    client.update()
+                    client.idle("update")  # start
+                    client.idle("update")  # end
+                    client.add(next.file)
+                client.play()
+                next.votes.clear()
+                next.save()
+                state.set_next_song(next)
+                state.save()
+                state.refresh_from_db()
+
+
+def player():
+    if not hasattr(player, 'instance'):
+        player.instance = _Player()
+    return player.instance

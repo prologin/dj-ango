@@ -1,0 +1,14 @@
+# Django itself
+django<1.10
+# Monitoring for Django
+django-prometheus
+# Youtube Data API, for YouTube music video search
+google-api-python-client
+# Audio metadata extraction
+mutagen
+# Postgres connector
+psycopg2
+# MPD control
+python-mpd2
+# Music retrieval from YouTube
+youtube-dl

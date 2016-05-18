@@ -7,7 +7,8 @@ class SongAdmin(admin.ModelAdmin):
     list_per_page = 2500
     search_fields = ('title', 'artist__name')
 
+
 admin.site.register(Song, SongAdmin)
 
-for mod in (Artist, PendingSong, Player):
+for mod in (PendingSong, Player):
     admin.site.register(mod)
