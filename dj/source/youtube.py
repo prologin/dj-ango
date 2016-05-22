@@ -13,8 +13,9 @@ logger = logging.getLogger('dj.source.youtube')
 
 
 class YouTube(SongSource):
-    source_name = "YouTube"
+    source_code = 'youtube'
     source_icon = "youtube-play"
+    source_name = "YouTube"
 
     url = 'https://youtube.com/watch?v={}'
 
@@ -62,6 +63,8 @@ class YouTube(SongSource):
 
     @classmethod
     def download(cls, identifier):
+        if settings.YOUTUBE_FAKE_DOWNLOAD:
+            return os.path.join(settings.YOUTUBE_DOWNLOAD_PATH, identifier + '.mp3')
         url = cls.get_url(identifier)
         logger.debug("Downloading %s", url)
         dl_client = cls.dl_client()

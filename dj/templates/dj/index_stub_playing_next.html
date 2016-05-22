@@ -23,7 +23,7 @@
           <form action="{% url 'dj:vote' %}" method="post">
             {% csrf_token %}
             <input type="hidden" name="song_id" value="{{ song.pk }}">
-            <input type="hidden" name="next" value="{% url 'dj:index' %}">
+            <input type="hidden" name="next" value="{% url 'dj:home' %}">
             {% if request.user in song.votes.all %}
               <button class="btn btn-danger btn-xs" name="action"
                       value="remove">

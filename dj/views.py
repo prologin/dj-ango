@@ -47,7 +47,7 @@ def validate_download_song(pending_song):
     return song
 
 
-class IndexView(PermissionRequiredMixin, ListView):
+class HomeView(PermissionRequiredMixin, ListView):
     template_name = "dj/index.html"
     model = dj.models.Song
     next_count = 5
@@ -105,8 +105,9 @@ class VoteOrUnvoteSongView(UpdateView):
 
     def form_valid(self, form):
         try:
-            method = 'add' if self.request.POST[
-                'action'] == 'add' else 'remove'
+            method = self.request.POST['action']
+            if method not in ('add', 'remove'):
+                raise AttributeError()
             getattr(self.object.votes, method)(self.request.user)
             return super(ModelFormMixin, self).form_valid(form)
         except Exception:
@@ -178,7 +179,8 @@ class SuggestSongView(PermissionRequiredMixin, CreateView):
                                              pending_song))
                 validate_download_song(pending_song)
             else:
-                pending_song.save()
+                with transaction.atomic():
+                    pending_song.save()
                 messages.success(self.request, format_html(
                     "{} was added to validation queue.", pending_song))
             return super(ModelFormMixin, self).form_valid(form)
@@ -272,7 +274,7 @@ class LoginView(FormView):
 
 
 class SkipSongView(PermissionRequiredMixin, View):
-    url = reverse_lazy('dj:index')
+    url = reverse_lazy('dj:home')
     permission_required = 'dj.skip_song'
 
     def post(self, request, *args, **kwargs):
@@ -295,9 +297,9 @@ class VolumeView(PermissionRequiredMixin, View):
             return HttpResponseBadRequest()
 
 
-class NowPlayingStubView(IndexView):
+class NowPlayingStubView(HomeView):
     template_name = 'dj/index_stub_now_playing.html'
 
 
-class PlayingNextStubView(IndexView):
+class PlayingNextStubView(HomeView):
     template_name = 'dj/index_stub_playing_next.html'

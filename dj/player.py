@@ -22,11 +22,14 @@ def mpd_client():
     client.disconnect()
 
 
-def get_volume() -> int:
+def get_volume(cached=True) -> int:
     def volume():
         with mpd_client() as client:
-            return client.status()['volume']
-    return cache.get_or_set('mpd/volume', volume, 10)
+            return int(client.status()['volume'])
+    if cached:
+        return cache.get_or_set('mpd/volume', volume, 10)
+    else:
+        return volume()
 
 
 def set_volume(volume: int):

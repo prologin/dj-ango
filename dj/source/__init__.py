@@ -4,6 +4,8 @@ import urllib
 from django.core import signing
 from django.utils.functional import cached_property
 
+from dj.templatetags.djutils import elapsed
+
 
 def all():
     return SongSourceRegistry.registry.values()
@@ -18,16 +20,15 @@ class SongSourceRegistry(type):
 
     def __new__(cls, clsname, bases, attrs):
         newclass = super().__new__(cls, clsname, bases, attrs)
-        if newclass.source_name:
-            code = newclass.__name__.lower()
-            newclass.source_code = code
-            cls.registry[code] = newclass
+        if newclass.source_code:
+            cls.registry[newclass.source_code] = newclass
         return newclass
 
 
 class SongSource(metaclass=SongSourceRegistry):
-    source_name = None
+    source_code = None
     source_icon = None
+    source_name = None
 
     @classmethod
     def load(cls, opaque: str, song) -> dict:
@@ -104,6 +105,11 @@ class SongSource(metaclass=SongSourceRegistry):
             'duration': self.get_duration(),
             'identifier': self.get_identifier(),
         })
+
+    def __repr__(self):
+        return "<SongSource [{}] {} - {} ({})>".format(
+            self.get_identifier(), self.get_artist() or "Unknown", self.get_title(),
+            elapsed(self.get_duration()))
 
 
 class DataEncodedImage:

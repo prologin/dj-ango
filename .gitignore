@@ -3,3 +3,5 @@ __pycache__/
 *.db
 .idea/
 .DS_Store
+/dj/settings/dev.py
+/static/

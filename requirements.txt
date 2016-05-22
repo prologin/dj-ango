@@ -12,10 +12,9 @@ isodate
 mutagen
 # Postgres connector
 psycopg2
-# MPD controln
+# mpd client
 python-mpd2
 # Predicate-based permissions
 rules
 # Music retrieval from YouTube
 youtube-dl
-
