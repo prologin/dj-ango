@@ -1,38 +1,68 @@
-{% extends "dj/_base.html" %}
+{% extends "dj/base.html" %}
+
+{% block title %}Vote for next song{{ block.super }}{% endblock %}
 
 {% block content %}
-<h1 class="text-center">Vote</h1>
-<div class="row">
-  <form method="post" action="/vote/1">{% csrf_token %}
-    <div class="col-md-6 col-md-offset-3">
-      <div class="input-group">
-        <input type="text" name="search" class="form-control">
-        <span class="input-group-btn">
-          <button class="btn btn-default" type="submit">
-            <span class="glyphicon glyphicon-search"></span>
-          </button>
-        </span>
-      </div>
-    </div>
-  </form>
-</div>
-<br/>
-<div class="row">
-  <div class="col-md-10 col-md-offset-1">
-    <div class="well">
-      <ul class="nav nav-tabs nav-justified" role="tablist">
-        <li id="all" {% if category == "all" %}class="active"{% endif %}><a href="javascript:vote_category('all')">All</a> </li>
-        <li id="youtube" {% if category == "youtube" %}class="active"{% endif %}><a href="javascript:vote_category('youtube')">Youtube</a></li>
-        <li id="grooveshark" {% if category == "grooveshark" %}class="active"{% endif %}><a href="javascript:vote_category('grooveshark')">Grooveshark</a></li>
-        <li id="coucoucircus" {% if category == "coucoucircus" %}class="active"{% endif %}><a href="javascript:vote_category('coucoucircus')">Coucoucircus</a></li>
-        <li id="ma" {% if category == "ma" %}class="active"{% endif %}><a href="javascript:vote_category('ma')">MA</a></li>
-        <li id="upload" {% if category == "upload" %}class="active"{% endif %}><a href="javascript:vote_category('upload')">Upload</a></li>
-      </ul>
-      <br/><br/>
-      <span id="page">
-      {% include "dj/vote_page.html" %}
+
+  <h1 class="text-center">Vote for next song</h1>
+
+  <form method="get" class="full-form">
+    <div class="input-group">
+      <input type="search" name="q" class="form-control" accesskey="s"
+             value="{{ request.GET.q }}"
+             placeholder="Search available songs (Alt-s)">
+      <span class="input-group-btn">
+        {% if request.GET.q %}
+          <a class="btn btn-default" href="?q=" accesskey="c" title="Clear search (Alt-c)"><i class="fa fa-times"></i></a>
+        {% endif %}
+        <button class="btn btn-primary" type="submit">
+          <i class="fa fa-search"></i>
+          Search
+        </button>
       </span>
     </div>
-  </div>
-</div>
-{% endblock content %}
+  </form>
+
+  <table class="table table-striped">
+    <thead>
+    <tr>
+      <th>Artist</th>
+      <th>Title</th>
+      <th>Duration</th>
+      <th>Votes</th>
+      <th>Act</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for song in songs %}
+      <tr>
+        <td>{{ song.artist }}</td>
+        <td>{{ song.title }}</td>
+        <td>{{ song.human_duration }}</td>
+        <td>{{ song.vote_count }}</td>
+        <td>
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="song_id" value="{{ song.pk }}">
+            <input type="hidden" name="next"
+                   value="{% url 'dj:vote' %}?q={{ request.GET.q }}">
+            {% if request.user in song.votes.all %}
+              <button class="btn btn-danger btn-xs" name="action"
+                      value="remove">
+                <i class="fa fa-thumbs-down"></i>
+              </button>
+            {% else %}
+              <button class="btn btn-success btn-xs" name="action" value="add">
+                <i class="fa fa-thumbs-up"></i>
+              </button>
+            {% endif %}
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  {% include "dj/stub_pagination.html" %}
+
+{% endblock %}

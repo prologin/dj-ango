@@ -1,0 +1,30 @@
+{% load djutils %}
+
+{% if current_song %}
+
+  <div class="pull-right">
+    <span id="timer" data-duration="{{ current_song.duration }}"
+          data-elapsed="{{ current_elapsed.total_seconds }}">
+      {{ current_elapsed|elapsed }}</span>/{{ current_song.duration|elapsed }}
+  </div>
+  <p>
+    {% if current_song.artist %}{{ current_song.artist }} –{% endif %}
+    {{ current_song.title }}
+  </p>
+  <div class="progress" style="background-color: #666">
+    <div id="timer-bar" class="progress-bar progress-bar-success"
+         role="progressbar" aria-valuenow="0" aria-valuemin="0"
+         aria-valuemax="100" style="width: 0%"></div>
+  </div>
+
+{% else %}
+
+  {# No song placeholder #}
+  <div class="progress" style="background-color: #666">
+    <div class="progress-bar progress-bar-danger progress-bar-striped active"
+         style="width: 100%">
+      <i class="fa fa-frown-o"></i> <em>No song</em>
+    </div>
+  </div>
+
+{% endif %}

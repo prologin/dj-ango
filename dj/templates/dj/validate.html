@@ -1,13 +1,89 @@
-{% extends "dj/_base.html" %}
+{% extends "dj/base.html" %}
+
+{% block title %}Validate song suggestions{{ block.super }}{% endblock %}
 
 {% block content %}
-<h1 class="text-center">Validate songs</h1>
-<div class="panel panel-default">
-  <div class="panel-heading"><h3 class="panel-title">Songs waiting for validation</h3></div>
-  <div class="panel-body">
-    <span id="pending">
-    {% include "dj/pending.html" %}
-    </span>
-  </div>
-</div>
-{% endblock content %}
+
+  <h1 class="text-center">Validate songs</h1>
+
+  {% if pending_songs %}
+
+    <table class="table table-striped table-hover table-middle">
+      <thead>
+      <tr>
+        <th>Artist</th>
+        <th>Title</th>
+        <th>Duration</th>
+        <th>Source</th>
+        <th>Decision</th>
+      </tr>
+      </thead>
+      <tbody>
+      {% for song in pending_songs %}
+        <form action="{% url 'dj:validate' %}" method="post">
+          <tr>
+            <td>
+              <input type="text" name="artist" class="form-control"
+                     value="{{ song.artist }}">
+            </td>
+            <td>
+              <input type="text" name="title" class="form-control"
+                     value="{{ song.title }}" required>
+            </td>
+            <td>
+              {{ song.human_duration }}
+            </td>
+            <td>
+              <a href="{{ song.url }}" class="btn btn-info btn-block"
+                 target="_blank">
+                <i
+                  class="fa fw-fw fa-{{ song.source_class.source_icon }}"></i> {{ song.source_class.source_name }}
+              </a>
+            </td>
+            <td>
+              {% csrf_token %}
+              <input type="hidden" name="song_id" value="{{ song.pk }}">
+              {% if song.banned %}
+                <button class="btn btn-danger" type="submit"
+                        name="decision"
+                        value="unban">
+                  <i class="fa fa-ban"></i>
+                  Release ban
+                </button>
+              {% else %}
+                <button class="btn btn-success" type="submit"
+                        name="decision"
+                        value="validate">
+                  <i class="fa fa-check"></i>
+                  Validate
+                </button>
+                <button class="btn btn-warning" type="submit"
+                        name="decision"
+                        value="nuke">
+                  <i class="fa fa-trash"></i>
+                  Nuke
+                </button>
+                <button class="btn btn-danger" type="submit"
+                        name="decision"
+                        value="ban">
+                  <i class="fa fa-ban"></i>
+                  Ban
+                </button>
+              {% endif %}
+            </td>
+          </tr>
+        </form>
+      {% endfor %}
+      </tbody>
+    </table>
+
+  {% else %}
+    <div class="alert alert-success">
+      <i class="fa fa-smile-o"></i>
+      <div><em>No pending song.</em></div>
+    </div>
+  {% endif %}
+
+  {% include "dj/stub_pagination.html" %}
+
+{% endblock %}

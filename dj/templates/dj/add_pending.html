@@ -1,6 +1,0 @@
-<div class="panel-body">
-  {% for song in pending %}
-  {% if song.artist %}{{song.artist}} - {% endif %} {{song.title}}
-  <span style="float: right"><a href="{{song.link}}">{{song.link}}</a></span><br/>
-  {% endfor %}
-</div>

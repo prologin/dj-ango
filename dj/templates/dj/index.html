@@ -1,47 +1,46 @@
-{% extends "dj/_base.html" %}
+{% extends "dj/base.html" %}
+{% load rules %}
+
+{% block title %}Now playing{{ block.super }}{% endblock %}
 
 {% block content %}
-<div class="row">
-  <div class="col-md-6 col-md-offset-3">
-    <div class="row">
-      <div class="col-xs-12">
-        <div class="panel panel-default">
-          <div class="panel-heading"><h3 class="panel-title">Playlist</h3></div>
-          <div class="panel-body">
-            <!--
-            {% if user.is_superuser %}
-            <form method="post" action="#">{% csrf_token %}
-              <h4>Volume:
-                <div style="float: right">
-                  <input id="sl1" class="span2" type="text" data-slider-min="0" data-slider-value="{{volume}}"
-                  data-slider-max="100" data-slider-step="1"style="float: right" name="volume"></input>
-                  <button type="submit" class="btn btn-default btn-xs">Ok</button>
-                </div>
-              </h4>
-            </form>
-            <script>$('#sl1').slider()</script>
-            <hr>
+
+  <div class="row">
+    <div class="col-md-6 col-md-offset-3">
+      <div class="row">
+        <div class="col-xs-12">
+          <div class="well">
+            <h4>Now playing</h4>
+            <div id="stub-now-playing">
+            {% include "dj/index_stub_now_playing.html" %}
+            </div>
+            {% has_perm 'dj.skip_song' request.user as can_skip_song %}
+            {% has_perm 'dj.set_volume' request.user as can_set_volume %}
+            {% if can_set_volume or can_skip_song %}
+              <hr>
+              <h4>Control panel</h4>
+              {% if can_set_volume %}
+                <p>Volume: <input type="range" min="0" max="100" id="volume" value="{{ volume }}">
+                </p>
+              {% endif %}
+              {% if can_set_volume %}
+                <form action="{% url 'dj:skip' %}" method="post">
+                  {% csrf_token %}
+                  <button type="submit" name="skip" class="btn btn-warning">
+                    <i class="fa fa-forward"></i> Skip song
+                  </button>
+                </form>
+              {% endif %}
             {% endif %}
-            --!>
-            <h4>Player</h4>
-            <audio controls loop style="width: 100%">
-              <source src="http://mpd.zeletochoy.fr/mpd.ogg" type="audio/ogg">
-              Your browser does not support the audio element.
-            </audio> 
             <hr>
-            <h4>Now Playing</h4>
-            <span id="now-playing">
-            {% include "dj/now_playing.html" %}
-            </span>
-            <hr>
-            <h4>Next</h4>
-            <span id="next">
-            {% include "dj/next.html" %}
-            </span>
+            <h4>Coming next</h4>
+            <div id="stub-playing-next">
+              {% include "dj/index_stub_playing_next.html" %}
+            </div>
           </div>
         </div>
       </div>
     </div>
   </div>
-</div>
-{% endblock content %}
+
+{% endblock %}

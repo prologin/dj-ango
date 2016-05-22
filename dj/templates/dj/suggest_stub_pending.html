@@ -1,0 +1,28 @@
+<div class="panel-body">
+  {% if pending_songs %}
+    <table class="table table-striped">
+      <thead>
+      <tr>
+        <th>Artist</th>
+        <th>Title</th>
+        <th>Duration</th>
+        <th>Source</th>
+      </tr>
+      </thead>
+      <tbody>
+      {% for song in pending_songs %}
+        <tr>
+          <td>{{ song.artist }}</td>
+          <td>{{ song.title }}</td>
+          <td>{{ song.human_duration }}</td>
+          <td>
+            <i class="fa fw-fw fa-{{ song.source_class.source_icon }}"></i> {{ song.source_class.source_name }}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <em>No pending song.</em>
+  {% endif %}
+</div>

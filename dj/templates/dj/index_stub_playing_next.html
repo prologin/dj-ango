@@ -1,0 +1,50 @@
+{% if songs %}
+
+  <table class="table table-striped">
+    <thead>
+    <tr>
+      <th></th>
+      <th>Artist</th>
+      <th>Title</th>
+      <th>Duration</th>
+      <th>Votes</th>
+      <th></th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for song in songs %}
+      <tr>
+        <td>{{ forloop.counter }}</td>
+        <td>{{ song.artist }}</td>
+        <td>{{ song.title }}</td>
+        <td>{{ song.human_duration }}</td>
+        <td>{{ song.vote_count }}</td>
+        <td>
+          <form action="{% url 'dj:vote' %}" method="post">
+            {% csrf_token %}
+            <input type="hidden" name="song_id" value="{{ song.pk }}">
+            <input type="hidden" name="next" value="{% url 'dj:index' %}">
+            {% if request.user in song.votes.all %}
+              <button class="btn btn-danger btn-xs" name="action"
+                      value="remove">
+                <i class="fa fa-thumbs-down"></i>
+              </button>
+            {% else %}
+              <button class="btn btn-success btn-xs" name="action" value="add">
+                <i class="fa fa-thumbs-up"></i>
+              </button>
+            {% endif %}
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <p><a href="{% url 'dj:vote' %}" class="btn btn-default btn-block"><i class="fa fa-angle-double-right"></i> Browse all votes</a></p>
+
+{% else %}
+
+  <div class="alert alert-danger"><i class="fa fa-frown-o"></i> <div><em>No song.</em></div></div>
+
+{% endif %}

@@ -1,14 +1,21 @@
 # Django itself
 django<1.10
+# Bootstrap forms
+django-crispy-forms
 # Monitoring for Django
 django-prometheus
 # Youtube Data API, for YouTube music video search
 google-api-python-client
+# ISO 8601 duration parser for YouTube video durations
+isodate
 # Audio metadata extraction
 mutagen
 # Postgres connector
 psycopg2
-# MPD control
+# MPD controln
 python-mpd2
+# Predicate-based permissions
+rules
 # Music retrieval from YouTube
 youtube-dl
+

@@ -1,11 +1,17 @@
-.btn-file
-{
+h1 {
+  margin-bottom: 3rem;
+}
+
+.full-form {
+  margin-bottom: 3rem;
+}
+
+.btn-file {
   position: relative;
   overflow: hidden;
 }
 
-.btn-file input[type=file]
-{
+.btn-file input[type=file] {
   position: absolute;
   top: 0;
   right: 0;
@@ -13,10 +19,31 @@
   min-height: 100%;
   font-size: 100px;
   text-align: right;
-  filter: alpha(opacity=0);
   opacity: 0;
   outline: none;
   background: white;
   cursor: inherit;
   display: block;
+}
+
+.table-middle tbody tr td {
+  vertical-align: middle;
+}
+
+.song-duration::before {
+  content: '(';
+}
+
+.song-duration::after {
+  content: ')';
+}
+
+.alert > .fa {
+  display: table-cell;
+  vertical-align: middle;
+}
+
+.alert div, .alert span {
+  padding-left: 8px;
+  display: table-cell;
 }

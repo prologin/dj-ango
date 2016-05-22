@@ -1,320 +1,303 @@
-import traceback
-from django.template import RequestContext
-from django.core.paginator import Paginator
-from django.shortcuts import render_to_response, redirect
-from django.db.models import Count, Sum, Q
-from prometheus_client import Gauge
-from dj.models import *
-from django.contrib.auth.models import User
-from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
-from django.http import HttpResponse
-from dj.utils import compute_time
-import dj.youtube
-import urllib.parse as url
-import threading
-import math
-import re
+import logging
 import os
-import datetime
+
+from django.conf import settings
+from django.contrib import messages
+from django.contrib.auth import authenticate, login, REDIRECT_FIELD_NAME
+from django.core.exceptions import SuspiciousOperation
+from django.core.signing import BadSignature
+from django.core.urlresolvers import reverse_lazy, reverse
+from django.db import IntegrityError
+from django.db import transaction
+from django.db.models import Q
+from django.http.response import HttpResponseBadRequest, HttpResponseRedirect, \
+    HttpResponse
+from django.shortcuts import redirect, resolve_url
+from django.utils import timezone
+from django.utils.decorators import method_decorator
+from django.utils.functional import cached_property
+from django.utils.html import format_html
+from django.utils.http import is_safe_url
+from django.views.decorators.csrf import csrf_exempt
+from django.views.generic import View, ListView
+from django.views.generic.edit import FormView, CreateView, UpdateView, \
+    ModelFormMixin
+from rules.contrib.views import PermissionRequiredMixin
+
+import dj.forms
+import dj.models
+import dj.player
+import dj.source
+
+logger = logging.getLogger('dj.views')
 
 
-def sec2str(sec):
-    try:
-        m, s = divmod(int(sec), 60)
-    except Exception as e:
-        print("sec2str: %s" % e)
-    return "%d:%02d" % (m, s)
+def validate_download_song(pending_song):
+    with transaction.atomic():
+        cls = dj.source.from_code(pending_song.source)
+        path = cls.download(pending_song.identifier)
+        path = os.path.relpath(path, settings.MPD_MUSIC_ROOT)
+        song = dj.models.Song(artist=pending_song.artist,
+                              title=pending_song.title,
+                              duration=pending_song.duration,
+                              path=path)
+        song.save()
+        if pending_song.pk is not None:
+            pending_song.delete()
+    return song
 
 
-def index(request, template="dj/index.html"):
-    if not request.user.is_authenticated():
-        return redirect('/login', prev=request.path)
-    user = request.user
-    if "todo" in request.POST and "id" in request.POST:
-        todo = request.POST["todo"]
-        if todo == "add":
-            song = Song.objects.get(id=request.POST["id"])
-            song.votes.add(User.objects.get(username=user))
-        elif todo == "remove":
-            song = Song.objects.get(id=request.POST["id"])
-            song.votes.remove(User.objects.get(username=user))
-    size_next = 5
-    songs = Song.objects.all().annotate(Count('votes')).order_by(
-        '-votes__count', 'id')
-    songs = songs[:size_next]
-    for s in songs:
-        setattr(s, 'time', sec2str(s.duration))
-    player = Player.instance()
-    playing = None
-    time = None
-    if player.is_valid():
-        playing = player.song
-        elapsed = datetime.datetime.now() - player.start_time
-        cm, cs = divmod(elapsed.seconds, 60)
-        dm, ds = divmod(playing.duration, 60)
-        time = "%d:%02d/%d:%02d" % (cm, cs, dm, ds)
-    args = {'songs': songs, 'playing': playing, 'time': time, 'user': user}
-    if user.is_superuser:
-        args["volume"] = Player.objects.get(id=1).volume
-    return render_to_response(template,
-                              args,
-                              context_instance=RequestContext(request))
+class IndexView(PermissionRequiredMixin, ListView):
+    template_name = "dj/index.html"
+    model = dj.models.Song
+    next_count = 5
+    context_object_name = 'songs'
+    permission_required = "dj.browse"
+
+    def get_queryset(self):
+        return super().get_queryset()[:self.next_count]
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        player = dj.models.Player.instance()
+        if player.is_playing():
+            context['current_song'] = player.song
+            context['current_elapsed'] = timezone.now() - player.start_time
+        context['volume'] = dj.player.get_volume()
+        return context
 
 
-def now_playing(request):
-    return index(request, "dj/now_playing.html")
+class VoteSongListView(ListView):
+    # Permission checking is done in VoteSongView
+    template_name = 'dj/vote.html'
+    model = dj.models.Song
+    context_object_name = 'songs'
+    paginate_by = 20
+
+    @cached_property
+    def search_query(self):
+        return self.request.GET.get('q', '').strip()
+
+    def get_queryset(self):
+        qs = super().get_queryset().prefetch_related('votes')
+        query = self.search_query
+        if query:
+            qs = qs.filter(Q(title__icontains=query) | Q(
+                artist__icontains=query))
+        return qs
 
 
-def next(request):
-    return index(request, "dj/next.html")
+class VoteOrUnvoteSongView(UpdateView):
+    # Permission checking is done in VoteSongView
+    model = dj.models.Song
+    fields = []
+
+    def get_success_url(self):
+        return self.request.POST['next']
+
+    def get_object(self, queryset=None):
+        return (queryset or self.get_queryset()).get(
+            pk=self.request.POST['song_id'])
+
+    def form_invalid(self, form):
+        return HttpResponseBadRequest()
+
+    def form_valid(self, form):
+        try:
+            method = 'add' if self.request.POST[
+                'action'] == 'add' else 'remove'
+            getattr(self.object.votes, method)(self.request.user)
+            return super(ModelFormMixin, self).form_valid(form)
+        except Exception:
+            return HttpResponseBadRequest()
 
 
-class Result:
-    def __init__(self, title, link, duration, source="youtube"):
-        self.title = title
-        self.link = link
-        self.duration = duration
-        self.source = source
+class VoteSongView(PermissionRequiredMixin, View):
+    permission_required = 'dj.vote_song'
+
+    def get(self, request, *args, **kwargs):
+        return VoteSongListView.as_view()(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        return VoteOrUnvoteSongView.as_view()(request, *args, **kwargs)
 
 
-class Results:
-    def __init__(self, site, results):
-        self.site = site
-        self.results = results
+class SuggestSongView(PermissionRequiredMixin, CreateView):
+    template_name = 'dj/suggest.html'
+    model = dj.models.PendingSong
+    queryset = model.objects.filter(banned=False)
+    fields = ['artist', 'title']
+    context_object_name = 'songs'
+    pending_song_count = 5
+    success_url = reverse_lazy('dj:suggest')
+    permission_required = 'dj.suggest_song'
+
+    @cached_property
+    def search_query(self):
+        return self.request.GET.get('q', '').strip().lower()
+
+    def get_success_url(self):
+        if self.search_query:
+            return '{}?q={}'.format(self.success_url, self.search_query)
+        return self.success_url
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Source list
+        context['available_sources'] = [source.source_name
+                                        for source in dj.source.all()]
+        # Add a few songs from pending songs
+        context['pending_songs'] = self.get_queryset()[:
+                                                       self.pending_song_count]
+        # Execute search if needed
+        q = self.search_query
+        if q:
+            search_results = []
+            for source in dj.source.all():
+                search_results.extend(source.search(q))
+            context['search_results'] = search_results
+        return context
+
+    def form_valid(self, form):
+        # Save new suggestion (or error out if banned)
+        pending_song = self.object = form.save(commit=False)
+        pending_song.submitter = self.request.user
+        try:
+            dj.source.SongSource.load(self.request.POST['state'], pending_song)
+        except KeyError:
+            return HttpResponseBadRequest()
+        except BadSignature:
+            return SuspiciousOperation("Malformed SerializableSong state")
+        try:
+            if self.request.user.has_perm(
+                    'dj.validate_song') and self.request.POST.get(
+                        'instant_validate'):
+                messages.success(self.request,
+                                 format_html("{} was added and validated.",
+                                             pending_song))
+                validate_download_song(pending_song)
+            else:
+                pending_song.save()
+                messages.success(self.request, format_html(
+                    "{} was added to validation queue.", pending_song))
+            return super(ModelFormMixin, self).form_valid(form)
+        except IntegrityError:
+            banned = self.model.objects.filter(
+                identifier=pending_song.identifier,
+                banned=True).exists()
+            if banned:
+                form.add_error(None, "This song is banned from suggestions.")
+            else:
+                form.add_error(None,
+                               "This song is already pending validation.")
+            return self.form_invalid(form)
 
 
-def pt2str(t):
-    s = t[2:-1]
-    m, s = s.split("M") if "M" in s else ("0", s)
-    if len(s) == 1:
-        s = '0' + s
-    return m + ":" + s
+class ValidateSongView(PermissionRequiredMixin, View):
+    permission_required = 'dj.validate_song'
+
+    def get(self, request, *args, **kwargs):
+        return ValidateSongListView.as_view()(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        return ValidateOrNukeSongView.as_view()(request, *args, **kwargs)
 
 
-def yt_search(search):
-    youtube = dj.youtube.YouTube()
-    ids = [video["id"]["videoId"] for video in youtube.search(search)]
-    res = youtube.details(ids)
-    for r in res:
-        r["len"] = pt2str(r["contentDetails"]["duration"])
-    url = "https://www.youtube.com/watch?v="
-    return [Result(r["snippet"]["title"], url + r["id"], r["len"])
-            for r in res]
+class ValidateSongListView(ListView):
+    # Permission checking is done in ValidateSongView
+    template_name = 'dj/validate.html'
+    model = dj.models.PendingSong
+    context_object_name = 'pending_songs'
+    paginate_by = 20
 
 
-def add(request):
-    if not request.user.is_authenticated():
-        return redirect('/login', prev=request.path)
-    user = request.user
-    results = None
-    pending = PendingSong.objects.filter(submitter=user)
-    args = {'pending': pending, 'user': user, 'results': None}
-    return render_to_response('dj/add.html',
-                              args,
-                              context_instance=RequestContext(request))
+class ValidateOrNukeSongView(UpdateView):
+    # Permission checking is done in ValidateSongView
+    model = dj.models.PendingSong
+    fields = ['artist', 'title']
+    success_url = reverse_lazy('dj:validate')
+
+    def get_object(self, queryset=None):
+        if queryset is None:
+            queryset = self.get_queryset()
+        return queryset.get(pk=self.request.POST['song_id'])
+
+    def form_invalid(self, form):
+        print(form.errors)
+        return redirect(reverse('dj:validate'))
+
+    def form_valid(self, form):
+        try:
+            decision = self.request.POST['decision']
+            self.object = form.save(commit=False)
+            if decision == 'ban':
+                if self.object.banned:
+                    return HttpResponseBadRequest()
+                else:
+                    self.object.banned = True
+                    self.object.save()
+            elif decision == 'unban':
+                if self.object.banned:
+                    self.object.banned = False
+                    self.object.save()
+                else:
+                    return HttpResponseBadRequest()
+            elif decision == 'validate':
+                validate_download_song(self.object)
+            elif decision == 'nuke':
+                self.object.delete()
+            return super(ModelFormMixin, self).form_valid(form)
+        except KeyError:
+            return HttpResponseBadRequest()
 
 
-def add_results(request, search):
-    user = request.user
-    if not user.is_authenticated():
-        return HttpResponse("You need to be connected")
-    results = []
-    if "?v=" in search:
-        results.append(Results("Youtube", [Result("Direct link", search)]))
-    else:
-        results.append(Results("Youtube", yt_search(search)))
-    pending = PendingSong.objects.filter(submitter=user)
-    args = {'pending': pending, 'user': user, 'results': results}
-    return render_to_response('dj/add_search.html',
-                              args,
-                              context_instance=RequestContext(request))
+class LoginView(FormView):
+    template_name = 'dj/login.html'
+    form_class = dj.forms.DjAuthenticationForm
+    redirect_field_name = REDIRECT_FIELD_NAME
 
-
-def add_pending(request):
-    try:
-        artist = request.POST[
-            "artist"] if "artist" in request.POST else "Unknown"
-        if "link" in request.POST:
-            link = request.POST["link"] if request.POST[
-                "link"] != "" else "Not given"
-        source = request.POST["source"] if "source" in request.POST else "?"
-        PendingSong(title=request.POST["title"],
-                    artist=artist,
-                    link=link,
-                    source=source,
-                    submitter=request.user).save()
-        return HttpResponse("OK")
-    except Exception as e:
-        print("add_pending")
-        print(e)
-
-
-def add_upload(request):
-    save_upload(request.FILES["file"], request.POST["title"],
-                request.POST["artist"] if "artist" in request.POST else None)
-    return redirect("/add")
-
-
-def user_pending(request):
-    user = request.user
-    if not user.is_authenticated():
-        return HttpResponse("You need to be connected")
-    pending = PendingSong.objects.filter(user=user)
-    args = {'pending': pending}
-    return render_to_response('dj/add_pending.html',
-                              args,
-                              context_instance=RequestContext(request))
-
-
-def save_upload(f, title, artist):
-    ext = "." + str(f).split(".")[-1]
-    fname = ((artist + " - ") if artist else "") + title + ext
-    path = "/var/django/DJ_Ango/dj/songs/upload/"
-    with open(path + fname, "wb+") as dst:
-        for c in f.chunks():
-            dst.write(c)
-    duration = compute_time(f)
-    Song(title=title,
-         artist=artist,
-         file=("upload/" + fname),
-         duration=duration).save()
-
-
-def download_and_save(pending):
-    print("Downloading %s" % pending)
-    if pending.source == "youtube":
-        yt_dl(pending)
-
-
-def yt_dl(pending):
-    youtube = dj.youtube.YouTube()
-    try:
-        info = youtube.download_audio(pending.link)
-    except:
-        traceback.print_exc()
-        print("Couldn't download %s (%s)" % (pending.title, pending.link))
-        return
-    artist = pending.artist
-    f = "youtube/" + info["filename"]
-    duration = info["duration"]
-    Song(title=pending.title, artist=artist, file=f, duration=duration).save()
-
-
-def validate(request, template='dj/validate.html'):
-    if not (request.user.is_authenticated() and request.user.is_superuser):
-        return redirect('/')
-    pending = PendingSong.objects.all()
-    return render_to_response(template, {'pending': pending},
-                              context_instance=RequestContext(request))
-
-
-def pending(request):
-    return validate(request, 'dj/pending.html')
-
-
-def validate_pending(request, i):
-    user = request.user
-    if request.user.is_superuser:
-        pending = PendingSong.objects.get(id=i)
-        pending.title = request.POST["title"]
-        pending.artist = request.POST[
-            "artist"] if "artist" in request.POST else "Unknown"
-        if pending.artist == "":
-            pending.artist = "Unknown"
-        pending.link = request.POST["link"]
-        threading.Thread(target=download_and_save, args=[pending]).start()
-        pending.delete()
-        return HttpResponse("OK")
-    else:
-        return HttpResponse("Admin only, GTFO.")
-
-
-def nuke_pending(request, i):
-    user = request.user
-    if request.user.is_superuser:
-        PendingSong.objects.get(id=i).delete()
-        return HttpResponse("OK")
-    else:
-        return HttpResponse("Admin only, GTFO.")
-
-
-def vote(request, page, template="dj/vote.html", category="all"):
-    if not request.user.is_authenticated():
-        return redirect('/login', prev=request.path)
-    user = request.user
-    if "search" in request.POST:
-        search = request.POST["search"]
-        songs = Song.objects\
-            .filter(Q(title__icontains=search) | Q(artist__name__icontains=search))\
-            .annotate(Count('votes')).order_by('-votes__count', 'id')
-    elif category != "all":
-        songs = Song.objects.all().filter(file__startswith=(category + "/"))\
-                .annotate(Count('votes')).order_by('-votes__count', 'id')
-    else:
-        songs = Song.objects.all().annotate(Count('votes')).order_by(
-            '-votes__count', 'id')
-    p = Paginator(songs, 100 if "search" in request.POST else 20)
-    page = p.page(page)
-    for s in page:
-        setattr(s, 'time', sec2str(s.duration))
-    args = {'page': page,
-            'num_pages': p.num_pages,
-            'category': category,
-            'user': user}
-    return render_to_response(template,
-                              args,
-                              context_instance=RequestContext(request))
-
-
-def vote_category(request, c, page):
-    return vote(request, page, category=c)
-
-
-def vote_get_category(request, c, page):
-    return vote(request, page, "dj/vote_page.html", c)
-
-
-def add_vote(request):
-    if not "song_id" in request.POST:
-        return HttpResponse("Nothing to do.")
-    song = Song.objects.get(id=int(request.POST["song_id"]))
-    song.votes.add(User.objects.get(username=request.user))
-    song.save()
-    return HttpResponse("OK")
-
-
-def del_vote(request):
-    if not "song_id" in request.POST:
-        return HttpResponse("Nothing to do.")
-    song = Song.objects.get(id=int(request.POST["song_id"]))
-    song.votes.remove(User.objects.get(username=request.user))
-    song.save()
-    return HttpResponse("OK")
-
-
-def login(request, prev='/'):
-    if request.user.is_authenticated():
-        return redirect('/logout')
-    if "login" in request.POST and "password" in request.POST:
-        user = authenticate(username=request.POST["login"],
-                            password=request.POST["password"])
+    def form_valid(self, form):
+        redirect_to = self.request.POST.get(self.redirect_field_name,
+                                            self.request.GET.get(
+                                                self.redirect_field_name, ''))
+        user = authenticate(username=form.cleaned_data['username'],
+                            password=form.cleaned_data['password'])
         if user is not None:
-            auth_login(request, user)
-            return redirect(prev)
-    user = request.user.username
-    return render_to_response('dj/login.html', {'user': user},
-                              context_instance=RequestContext(request))
+            login(self.request, user)
+            if not is_safe_url(url=redirect_to, host=self.request.get_host()):
+                redirect_to = resolve_url(settings.LOGIN_REDIRECT_URL)
+            login(self.request, form.get_user())
+            return HttpResponseRedirect(redirect_to)
 
 
-def logout(request):
-    auth_logout(request)
-    return redirect('/login')
+class SkipSongView(PermissionRequiredMixin, View):
+    url = reverse_lazy('dj:index')
+    permission_required = 'dj.skip_song'
 
-# Prometheus metrics
+    def post(self, request, *args, **kwargs):
+        dj.player.skip()
+        return redirect(self.url)
 
-prom_votes = Gauge('django_vote_count', 'Number of votes')
-prom_votes.set_function(
-    lambda: Song.objects.all().annotate(Count('votes')).aggregate(Sum('votes__count'))['votes__count__sum'])
 
-prom_voting = Gauge('django_voting_user_count', 'Number of voting users')
-prom_voting.set_function(lambda: len(set(u for s in Song.objects.all().annotate(Count('votes')).filter(votes__count__gt=0) for u in s.votes.all())))
+@method_decorator(csrf_exempt, name='dispatch')
+class VolumeView(PermissionRequiredMixin, View):
+    permission_required = 'dj.set_volume'
+
+    def get(self, request, *args, **kwargs):
+        return HttpResponse(str(dj.player.get_volume()))
+
+    def post(self, request, *args, **kwargs):
+        try:
+            dj.player.set_volume(int(self.request.body[:3].decode()))
+            return HttpResponse(status=204)
+        except ValueError:
+            return HttpResponseBadRequest()
+
+
+class NowPlayingStubView(IndexView):
+    template_name = 'dj/index_stub_now_playing.html'
+
+
+class PlayingNextStubView(IndexView):
+    template_name = 'dj/index_stub_playing_next.html'

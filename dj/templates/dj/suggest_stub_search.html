@@ -1,0 +1,94 @@
+{% load djutils rules %}
+
+<form method="get" class="full-form">
+  <div class="input-group">
+    <input type="search" name="q" class="form-control" accesskey="s"
+           value="{{ request.GET.q }}"
+           placeholder="Search {{ available_sources|join:', ' }} (Alt-s)">
+      <span class="input-group-btn">
+        {% if request.GET.q %}
+          <a class="btn btn-default" href="?q=" accesskey="c" title="Clear search (Alt-c)"><i class="fa fa-times"></i></a>
+        {% endif %}
+        <button class="btn btn-primary" type="submit">
+          <i class="fa fa-search"></i> Search</button>
+      </span>
+  </div>
+</form>
+
+{% if search_results %}
+  <div class="panel panel-default">
+    <div class="panel-heading">
+      <h3 class="panel-title">Search results</h3>
+    </div>
+    <div class="panel-body">
+      <form id="result_list" action="" method="post">
+        {% for error in form.non_field_errors %}
+          <p class="alert alert-block alert-danger">{{ error }}</p>
+        {% endfor %}
+        {% csrf_token %}
+        <div class="row">
+          <div class="col-xs-6">
+            <div class="input-group">
+              <span class="input-group-addon">Title</span>
+              <input type="text" name="title" class="form-control"
+                     accesskey="t" autofocus
+                     placeholder="Title (required) (Alt-t)" required>
+            </div>
+          </div>
+          <div class="col-xs-6">
+            <div class="input-group">
+              <span class="input-group-addon">Artist</span>
+              <input type="text" name="artist" class="form-control"
+                     accesskey="a"
+                     placeholder="Artist (optional) (Alt-a)">
+            </div>
+          </div>
+        </div>
+        {% has_perm 'dj.validate_song' request.user as can_validate_song %}
+        {% if can_validate_song %}
+          <div class="checkbox">
+            <label>
+              <input type="checkbox" name="instant_validate"
+                     id="instant_validate">
+              Validate song immediately
+            </label>
+          </div>
+        {% endif %}
+        <table class="table table-striped table-middle" style="margin-top: 1em">
+          <tbody>
+          {% for r in search_results %}
+            <tr data-artist="{{ r.artist }}" data-title="{{ r.title }}">
+              <td>
+                {% if r.get_cover %}
+                <img class="media-object" src="{{ r.get_cover }}"
+                     style="max-height: 40px;" alt="Cover">
+                {% endif %}
+              </td>
+              <td width="100%">
+                <i class="fa fa-fw fa-{{ r.source_icon }}" style="margin-right: .5em"
+                   title="Source: {{ r.source_name }}"></i>
+                {{ r.artist_and_name }}
+              </td>
+              <td class="text-right">{{ r.get_duration|elapsed }}</td>
+              <td>
+                <button class="btn btn-default btn-block"
+                        title="Copy video title to song title"
+                        name="copy-to-fields">
+                  <i class="fa fa-files-o"></i>
+                </button>
+              </td>
+              <td>
+                <button class="btn btn-success btn-block"
+                        title="Suggest song"
+                        type="submit" name="state" value="{{ r.dump }}">
+                  <i class="fa fa-cloud-upload"></i>
+                </button>
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </form>
+    </div>
+  </div>
+{% endif %}
