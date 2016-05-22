@@ -12,6 +12,7 @@
   </div>
   <div class="collapse navbar-collapse">
     <ul class="nav navbar-nav navbar-right">
+    {% if request.user.is_authenticated %}
       <li><a href="{% url 'dj:home' %}">
         <i class="fa fa-volume-up"></i> Now playing</a>
       </li>
@@ -27,7 +28,11 @@
         <i class="fa fa-check"></i> Validate</a>
       </li>
     {% endif %}
-      <li><a href="{% if request.user.is_authenticated %}{% url 'dj:logout' %}{% else %}{% url 'dj:login' %}{% endif %}">
+    {% endif %}
+    {% if request.user.is_staff %}
+      <li><a href="{% url 'admin:index' %}"><i class="fa fa-star"></i> Admin</a></li>
+    {% endif %}
+      <li><a {% if request.user.is_authenticated %}href="{% url 'dj:logout' %}" title="Log out"{% else %}href="{% url 'dj:login' %}" title="Log in"{% endif %}>
         <i class="fa fa-user"></i> {% if request.user.is_authenticated %}{{request.user.username}}{% else %}Log in{% endif %}</a>
       </li>
     </ul>
