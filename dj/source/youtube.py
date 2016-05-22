@@ -84,13 +84,15 @@ class YouTube(SongSource):
             logger.debug("Search for %s", query)
             client = cls.data_client()
             videos = client.search().list(q=query, type='video',
+                                          maxResults=25,
                                           part='id,snippet').execute()['items']
             ids = [video["id"]["videoId"] for video in videos]
             details = (client
                        .videos()
                        .list(id=','.join(ids), part='id,snippet,contentDetails')
                        .execute())['items']
-            return [cls(obj) for obj in details]
+            return [video for video in (cls(obj) for obj in details)
+                    if video.get_duration() <= settings.SONG_MAX_DURATION]
 
         return cache.get_or_set('search/{}'.format(query),
                                 search,

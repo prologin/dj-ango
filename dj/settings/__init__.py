@@ -91,10 +91,14 @@ AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ]
 
+# Song max duration to be available for suggestion, in seconds
+SONG_MAX_DURATION = 60 * 5
+
 # mpd daemon address for remote control
 MPD_ADDRESS = ('localhost', 6600)
 # mpd root music directory
 MPD_MUSIC_ROOT = '/tmp/dj_ango/mpdroot'
+
 # YouTube Data API key
 YOUTUBE_DATA_API_KEY = ''
 # Youtube downloads destionation directory

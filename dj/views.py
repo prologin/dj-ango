@@ -131,6 +131,7 @@ class SuggestSongView(PermissionRequiredMixin, CreateView):
     fields = ['artist', 'title']
     context_object_name = 'songs'
     pending_song_count = 5
+    per_source_results = 5
     success_url = reverse_lazy('dj:suggest')
     permission_required = 'dj.suggest_song'
 
@@ -156,7 +157,7 @@ class SuggestSongView(PermissionRequiredMixin, CreateView):
         if q:
             search_results = []
             for source in dj.source.all():
-                search_results.extend(source.search(q))
+                search_results.extend(source.search(q)[:self.per_source_results])
             context['search_results'] = search_results
         return context
 
