@@ -1,10 +1,10 @@
 from django.core.management import BaseCommand
 
-from dj.player import main
+from dj.player import mpd_player_loop
 
 
 class Command(BaseCommand):
-    help = "Run the MPD player control"
+    help = "Run the mpd player loop"
 
     def handle(self, *args, **options):
-        main()
+        mpd_player_loop()

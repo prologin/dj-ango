@@ -43,7 +43,7 @@ def skip():
         client.next()
 
 
-def main():
+def mpd_player_loop():
     state = dj.models.Player.objects.first()
 
     delay = 1
@@ -108,7 +108,3 @@ def main():
 
         time.sleep(delay)
         delay *= 1.5
-
-
-if __name__ == '__main__':
-    main()
